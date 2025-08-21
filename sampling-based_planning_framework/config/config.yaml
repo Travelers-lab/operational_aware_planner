@@ -1,0 +1,28 @@
+# Training configuration for Map Completion Network
+
+# Data parameters
+data_path: "data/maps/"
+batch_size: 16
+num_workers: 4
+
+# Model parameters
+init_channels: 8
+bottleneck_channels: 32
+
+# Training parameters
+epochs: 100
+learning_rate: 0.001
+weight_decay: 1e-5
+checkpoint_dir: "checkpoints/"
+resume_checkpoint: null  # Set to checkpoint path to resume training
+
+# Optimization parameters
+optimizer: "adam"
+momentum: 0.9
+scheduler: "step"
+step_size: 30
+gamma: 0.1
+
+# Logging parameters
+log_interval: 10
+save_interval: 5

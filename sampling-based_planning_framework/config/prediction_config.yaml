@@ -1,0 +1,15 @@
+# Prediction configuration for Map Completion Network
+
+# Model parameters
+model_checkpoint: "checkpoints/best_model.pth"
+init_channels: 8
+bottleneck_channels: 32
+
+# Input/Output parameters
+input_dir: "data/predict_input/"
+output_dir: "data/predict_output/"
+
+# Processing parameters
+batch_size: 4
+normalize_input: true
+threshold_output: 0.5  # Binarization threshold for output

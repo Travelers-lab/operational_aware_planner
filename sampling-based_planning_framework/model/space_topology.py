@@ -117,27 +117,26 @@ class MapCompletionNet(nn.Module):
             print("Warning: 'params' key not found in checkpoint. Model not loaded.")
 
 
-# 实例化网络 (约7.6K参数)
-model = MapCompletionNet()
 
-
-# 打印参数量
-def count_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-
-print(f"参数量: {count_parameters(model)}")
 
 # 示例使用
 if __name__ == "__main__":
-    # 模拟输入: [batch_size, 1, 100, 100]
-    input_map = torch.rand(1, 1, 100, 100)  # 残缺的二值栅格地图
+    # init model
+    model = MapCompletionNet()
 
-    # 前向传播
+    # print total param number
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    print(f"param number: {count_parameters(model)}")
+    # inputs: [batch_size, 1, 100, 100]
+    input_map = torch.rand(1, 1, 100, 100)
+
+    # forward computing
     output_map = model(input_map)
 
-    # 二值化输出 (阈值0.5)
+    # binary output
     binary_output = (output_map > 0.5).float()
 
-    print("输入形状:", input_map.shape)
-    print("输出形状:", binary_output.shape)
+    print("inputs shape:", input_map.shape)
+    print("output shape:", binary_output.shape)

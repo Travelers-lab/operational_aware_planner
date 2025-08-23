@@ -1,179 +1,251 @@
 import numpy as np
 from typing import Dict, List, Any, Tuple
+import matplotlib.pyplot as plt
 
 
-def generate_operation_cost_map(binary_map: np.ndarray,
-                                objects_dict: Dict[str, Dict[str, Any]]) -> np.ndarray:
+class OperationCostMapGenerator:
     """
-    Generate an operation cost map based on object properties and binary occupancy map.
+    A class for generating operation cost maps based on object properties and binary occupancy maps.
 
-    This function creates a cost map where each grid cell has an operation cost value
-    based on the material properties of objects occupying that cell. The cost is calculated
-    by comparing object material properties with operation limits.
-
-    Args:
-        binary_map (np.ndarray): 100x100 binary occupancy map where 1 represents obstacles
-                                and 0 represents free space.
-        objects_dict (Dict): Dictionary containing multiple object sub-dictionaries. Each
-                            object dictionary should contain 'material_property' and
-                            'contour_equation' keys.
-
-    Returns:
-        np.ndarray: 100x100 operation cost map with values between 0 and 1, where 1
-                    represents impossible to operate and 0 represents no cost.
+    This class processes binary occupancy maps and object dictionaries to create
+    operation cost maps where each grid cell has a cost value based on the material
+    properties of objects occupying that cell.
     """
-    # Initialize operation cost map with zeros
-    operation_cost_map = np.zeros_like(binary_map, dtype=float)
 
-    # Operation limits for material properties
-    operation_limits = np.array([400, 400, 20])
+    def __init__(self, operation_limits: List[float] = [400, 400, 20]):
+        """
+        Initialize the OperationCostMapGenerator.
 
-    # Create a grid of coordinates for the map
-    x_coords, y_coords = np.meshgrid(np.arange(100), np.arange(100))
-    grid_points = np.column_stack((x_coords.ravel(), y_coords.ravel()))
+        Args:
+            operation_limits: List of operation limits for material properties [limit1, limit2, limit3]
+        """
+        self.operation_limits = np.array(operation_limits, dtype=np.float32)
+        self.map_size = (100, 100)
 
-    # Process each object in the dictionary
-    for obj_name, obj_data in objects_dict.items():
-        # Check if object has contour equation
-        if 'contour_equation' not in obj_data or obj_data['contour_equation'] is None:
-            continue
+    def generate_cost_map(self,
+                          binary_map: np.ndarray,
+                          objects_dict: Dict[str, Dict[str, Any]]) -> np.ndarray:
+        """
+        Generate an operation cost map from binary map and object properties.
 
-        contour_eq = obj_data['contour_equation']
-        params = contour_eq.get('params', None)
+        Args:
+            binary_map: 100x100 binary occupancy map (0=free, 1=occupied)
+            objects_dict: Dictionary containing object data with structure:
+                {
+                    'object_id': {
+                        'material_property': [float, float, float],
+                        'contour_equation': {
+                            'shape': str,
+                            'params': dict (shape-specific parameters)
+                        },
+                        'interaction_pairs': list,
+                        'contact_status': str
+                    }
+                }
 
-        # Check if object has material properties
-        if 'material_property' not in obj_data:
-            continue
+        Returns:
+            Operation cost map with same dimensions as input (100x100)
+        """
+        # Validate input
+        self._validate_input(binary_map)
 
-        material_property = np.array(obj_data['material_property'])
+        # Initialize cost map with zeros (free space has zero cost)
+        cost_map = np.zeros_like(binary_map, dtype=np.float32)
 
-        # Calculate operation cost for this object
-        ratios = material_property / operation_limits
-        if np.any(ratios > 1):
-            obj_cost = 1.0  # Impossible to operate
-        else:
-            obj_cost = np.mean(ratios)  # Average cost
+        # Process each object
+        for obj_id, obj_data in objects_dict.items():
+            try:
+                # Extract object properties
+                material_property = obj_data.get('material_property', [0, 0, 0])
+                contour_equation = obj_data.get('contour_equation', {})
 
-        # Determine which grid cells are inside this object's contour
-        if params is not None:
-            mask = np.zeros(10000, dtype=bool)  # 100x100 = 10000 cells
+                # Calculate operation cost for this object
+                object_cost = self._calculate_object_cost(material_property)
 
-            if contour_eq.get('type') == 'circle':
-                # Circle: params = [center_x, center_y, radius]
-                center = np.array([params[0], params[1]])
-                radius = params[2]
-                distances = np.linalg.norm(grid_points - center, axis=1)
-                mask = distances <= radius
+                # Get object mask from contour equation
+                object_mask = self._get_object_mask_from_contour(contour_equation)
 
-            elif contour_eq.get('type') == 'square':
-                # Square: params = [center_x, center_y, side_length]
-                center = np.array([params[0], params[1]])
-                half_side = params[2] / 2
-                min_corner = center - half_side
-                max_corner = center + half_side
+                if object_mask is not None:
+                    # Apply cost to object region in the cost map
+                    # Only apply cost where binary map indicates occupancy
+                    object_region = (object_mask > 0) & (binary_map > 0.5)
+                    cost_map[object_region] = object_cost
 
-                # Check if points are inside the square
-                in_x = np.logical_and(grid_points[:, 0] >= min_corner[0],
-                                      grid_points[:, 0] <= max_corner[0])
-                in_y = np.logical_and(grid_points[:, 1] >= min_corner[1],
-                                      grid_points[:, 1] <= max_corner[1])
-                mask = np.logical_and(in_x, in_y)
+                    print(f"Applied cost {object_cost:.3f} to object {obj_id}")
 
-            elif contour_eq.get('type') == 'triangle':
-                # Triangle: params = [x1, y1, x2, y2, x3, y3]
-                vertices = np.array(params).reshape(3, 2)
+            except Exception as e:
+                print(f"Error processing object {obj_id}: {str(e)}")
+                continue
 
-                # Use barycentric coordinate method to check if point is inside triangle
-                def point_in_triangle(point, v1, v2, v3):
-                    # Compute vectors
-                    v0 = v3 - v1
-                    v1_vec = v2 - v1
-                    v2_vec = point - v1
+        return cost_map
 
-                    # Compute dot products
-                    dot00 = np.dot(v0, v0)
-                    dot01 = np.dot(v0, v1_vec)
-                    dot02 = np.dot(v0, v2_vec)
-                    dot11 = np.dot(v1_vec, v1_vec)
-                    dot12 = np.dot(v1_vec, v2_vec)
+    def _validate_input(self, binary_map: np.ndarray):
+        """
+        Validate input binary map.
 
-                    # Compute barycentric coordinates
-                    inv_denom = 1 / (dot00 * dot11 - dot01 * dot01)
-                    u = (dot11 * dot02 - dot01 * dot12) * inv_denom
-                    v = (dot00 * dot12 - dot01 * dot02) * inv_denom
+        Args:
+            binary_map: Input binary occupancy map
 
-                    # Check if point is in triangle
-                    return (u >= 0) and (v >= 0) and (u + v <= 1)
+        Raises:
+            ValueError: If input map is invalid
+        """
+        if binary_map.shape != self.map_size:
+            raise ValueError(f"Binary map must be {self.map_size}, got {binary_map.shape}")
 
-                # Vectorize the function for all points
-                point_in_triangle_vec = np.vectorize(
-                    lambda x, y: point_in_triangle(np.array([x, y]),
-                                                   vertices[0], vertices[1], vertices[2]),
-                    otypes=[bool]
-                )
+        if binary_map.min() < 0 or binary_map.max() > 1:
+            raise ValueError("Binary map values must be in range [0, 1]")
 
-                mask = point_in_triangle_vec(grid_points[:, 0], grid_points[:, 1])
+    def _calculate_object_cost(self, material_property: List[float]) -> float:
+        """
+        Calculate operation cost based on material properties.
 
-            # Update operation cost for cells inside this object
-            if np.any(mask):
-                # Reshape mask to 100x100 and update cost map
-                mask_2d = mask.reshape(100, 100)
+        Args:
+            material_property: List of 3 material property values
 
-                # Only update cells that are obstacles in the binary map
-                obstacle_cells = np.logical_and(mask_2d, binary_map == 1)
-                operation_cost_map[obstacle_cells] = obj_cost
+        Returns:
+            Operation cost value between 0 and 1
+        """
+        if not isinstance(material_property, (list, np.ndarray)) or len(material_property) != 3:
+            raise ValueError("material_property must be a list of 3 values")
 
-    return operation_cost_map
+        # Convert to numpy array
+        material_array = np.array(material_property, dtype=np.float32)
+
+        # Check if any property exceeds operation limits
+        normalized_properties = material_array / self.operation_limits
+
+        if np.any(normalized_properties > 1.0):
+            return 1.0  # Cannot operate
+
+        # Calculate average normalized cost
+        cost = np.mean(normalized_properties)
+
+        # Ensure cost is in [0, 1] range
+        return min(max(cost, 0.0), 1.0)
+
+    def _get_object_mask_from_contour(self, contour_equation: Dict[str, Any]) -> np.ndarray:
+        """
+        Create a binary mask for an object based on its contour equation.
+
+        Args:
+            contour_equation: Dictionary containing contour parameters
+
+        Returns:
+            Binary mask indicating object region, or None if invalid
+        """
+        if not contour_equation or 'params' not in contour_equation:
+            return None
+
+        shape_type = contour_equation.get('shape', '').lower()
+        params = contour_equation.get('params', {})
+
+        try:
+            # Create empty mask
+            mask = np.zeros(self.map_size, dtype=np.uint8)
+
+            if shape_type == 'square':
+                mask = self._create_square_mask(params)
+            elif shape_type == 'circle':
+                mask = self._create_circle_mask(params)
+            elif shape_type == 'triangle':
+                mask = self._create_triangle_mask(params)
+            elif shape_type == 'rectangle':
+                mask = self._create_rectangle_mask(params)
+            elif shape_type == 'polygon':
+                mask = self._create_polygon_mask(params)
+            else:
+                print(f"Unsupported shape type: {shape_type}")
+                return None
+
+            return mask.astype(np.float32)
+
+        except Exception as e:
+            print(f"Error creating mask for shape {shape_type}: {str(e)}")
+            return None
+
+    def visualize_cost_map(self,
+                           binary_map: np.ndarray,
+                           cost_map: np.ndarray,
+                           objects_dict: Dict[str, Dict[str, Any]] = None,
+                           save_path: str = None):
+        """
+        Visualize the binary map and cost map.
+
+        Args:
+            binary_map: Input binary occupancy map
+            cost_map: Generated operation cost map
+            objects_dict: Optional objects dictionary for additional visualization
+            save_path: Optional path to save the visualization
+        """
+        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+        # Plot binary map
+        im1 = axes[0].imshow(binary_map, cmap='binary', vmin=0, vmax=1)
+        axes[0].set_title('Binary Occupancy Map')
+        axes[0].set_xlabel('X')
+        axes[0].set_ylabel('Y')
+        plt.colorbar(im1, ax=axes[0])
+
+        # Plot cost map
+        im2 = axes[1].imshow(cost_map, cmap='hot', vmin=0, vmax=1)
+        axes[1].set_title('Operation Cost Map')
+        axes[1].set_xlabel('X')
+        axes[1].set_ylabel('Y')
+        plt.colorbar(im2, ax=axes[1])
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Visualization saved to {save_path}")
+
+        plt.show()
 
 
 # Example usage
 if __name__ == "__main__":
-    # Create a mock 100x100 binary map
+    # Create sample binary map
     binary_map = np.zeros((100, 100))
+    binary_map[20:40, 30:50] = 1  # Square obstacle
+    binary_map[60:80, 70:90] = 1  # Another obstacle
 
-    # Add some obstacles
-    binary_map[20:40, 30:50] = 1  # A square obstacle
-    binary_map[60:80, 70:90] = 1  # Another square obstacle
-
-    # Create a mock objects dictionary
-    objects_dict = {
-        "object0": {
-            "material_property": [300, 350, 15],  # Will result in cost < 1
-            "contour_equation": {
-                "type": "square",
-                "params": [35, 30, 20]  # Center at (35, 30) with side length 20
+    # Create sample objects dictionary
+    sample_objects = {
+        'object_1': {
+            'material_property': [200, 150, 8],  # Normalized: [0.5, 0.375, 0.4] -> avg ~0.425
+            'contour_equation': {
+                'shape': 'square',
+                'params': {
+                    'center': [35, 35],
+                    'side_length': 20
+                }
             },
-            "interaction_pairs": [],
-            "contact_status": "active"
+            'interaction_pairs': [],
+            'contact_status': 'active'
         },
-        "object1": {
-            "material_property": [450, 400, 25],  # One value > limit, cost = 1
-            "contour_equation": {
-                "type": "square",
-                "params": [75, 65, 20]  # Center at (75, 65) with side length 20
+        'object_2': {
+            'material_property': [500, 300, 25],  # Exceeds limits -> cost=1.0
+            'contour_equation': {
+                'shape': 'circle',
+                'params': {
+                    'center': [75, 75],
+                    'radius': 10
+                }
             },
-            "interaction_pairs": [],
-            "contact_status": "active"
+            'interaction_pairs': [],
+            'contact_status': 'active'
         }
     }
 
-    # Generate operation cost map
-    cost_map = generate_operation_cost_map(binary_map, objects_dict)
+    # Initialize cost map generator
+    cost_generator = OperationCostMapGenerator()
 
-    # Print some information
-    print("Binary map shape:", binary_map.shape)
-    print("Objects in dictionary:", len(objects_dict))
-    print("Cost map shape:", cost_map.shape)
-    print("Unique cost values:", np.unique(cost_map))
+    # Generate cost map
+    cost_map = cost_generator.generate_cost_map(binary_map, sample_objects)
 
-    # Display cost for the first object's area
-    obj0_mask = np.zeros_like(binary_map, dtype=bool)
-    obj0_mask[20:40, 30:50] = True
-    obj0_cost = cost_map[obj0_mask]
-    print(f"Object 0 cost: {np.unique(obj0_cost)}")
+    print(f"Cost map shape: {cost_map.shape}")
+    print(f"Cost range: [{cost_map.min():.3f}, {cost_map.max():.3f}]")
+    print(f"Number of non-zero cost cells: {np.sum(cost_map > 0)}")
 
-    # Display cost for the second object's area
-    obj1_mask = np.zeros_like(binary_map, dtype=bool)
-    obj1_mask[60:80, 70:90] = True
-    obj1_cost = cost_map[obj1_mask]
-    print(f"Object 1 cost: {np.unique(obj1_cost)}")
+    # Visualize results
+    cost_generator.visualize_cost_map(binary_map, cost_map, sample_objects, "cost_map_visualization.png")

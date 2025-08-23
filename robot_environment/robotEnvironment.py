@@ -67,7 +67,7 @@ class Robot:
         sensor_transform_matrix = {}
         # sensor_position = {}
         # arm_radius = 0.042
-        #计算传感器的基座的变换矩阵SE（3），大小为：4*4
+        # 计算传感器的基座的变换矩阵SE（3），大小为：4*4
         for i in body_links:
             joint_state = self.bullet_client.getLinkState(bodyUniqueId=self.robot, linkIndex=i)
             joint_pos, joint_ori = joint_state[4], joint_state[5]

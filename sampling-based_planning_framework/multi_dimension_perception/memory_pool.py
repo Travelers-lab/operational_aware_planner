@@ -326,7 +326,7 @@ class ObjectRecognitionAndStorage:
                              sensing_data: Dict[str, Any],
                              binary_grid_map: np.ndarray,
                              objects_dict: Dict[str, Dict[str, Any]],
-                             history_point_cloud: List[np.ndarray]) -> Tuple[Dict[str, Any], List[np.ndarray]]:
+                             history_point_cloud: List[List[float]]) -> Tuple[Dict[str, Any], List[np.ndarray]]:
         """
         Process sensory data and update objects dictionary and point cloud.
 

@@ -29,7 +29,7 @@ class MotionPlanningPipeline:
         """
         # Initialize components
         self.motion_intent_recognizer = MotionIntentRecognizer()
-        self.planner = RRTConnectPlanner(**(rrt_connect_params or {}))
+        self.planner = RRTConnectPlanner()
         self.trajectory_optimizer = SamplingPointOptimizer(
             interpolation_distance=interpolation_distance,
             interpolation_method=interpolation_method
@@ -71,9 +71,7 @@ class MotionPlanningPipeline:
         self.last_target_point = target_point
         return target_point
 
-    def plan_path(self,
-                  start_position: Tuple[float, float],
-                  goal_position: Tuple[float, float]) -> Dict[str, Any]:
+    def plan_path(self, cost_map: np.ndarray, motion_mission: Dict[str, Any]) -> Dict[str, Any]:
         """
         Plan a path using RRT-Connect planner.
 
@@ -85,8 +83,8 @@ class MotionPlanningPipeline:
             Dictionary containing planning results
         """
         planning_result = self.planner.plan_path(
-            start=start_position,
-            goal=goal_position
+            cost_map=cost_map,
+            motion_mission=motion_mission
         )
         return planning_result
 
@@ -104,9 +102,9 @@ class MotionPlanningPipeline:
         return optimized_path
 
     def execute_full_pipeline(self,
-                              start_position: Tuple[float, float],
+                              cost_map: np.ndarray,
                               objects_dict: Dict[str, Dict[str, Any]],
-                              motion_target: np.ndarray) -> Dict[str, Any]:
+                              motion_mission: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute the complete motion planning pipeline.
 
@@ -118,17 +116,18 @@ class MotionPlanningPipeline:
         Returns:
             Dictionary containing all planning results and metrics
         """
-        self.last_start_position = start_position
+        self.last_start_position = motion_mission.get('start_position', np.array([]))
+        motion_target = motion_mission.get('target_position', np.array([]))
         results = {}
 
         # Step 1: Motion Intent Recognition
         start_time_intent = time.time()
         try:
-            target_point = self.recognize_motion_intent(objects_dict, motion_target)
+            motion_mission['target_position'] = self.recognize_motion_intent(objects_dict, motion_target)
             intent_time = time.time() - start_time_intent
             results['intent_recognition'] = {
                 'success': True,
-                'target_point': target_point,
+                'target_point': motion_mission['target_position'],
                 'computation_time': intent_time
             }
         except Exception as e:
@@ -144,10 +143,9 @@ class MotionPlanningPipeline:
         # Step 2: Path Planning with RRT-Connect
         start_time_planning = time.time()
         try:
-            planning_result = self.plan_path(start_position, tuple(target_point[:2]))
+            planning_result = self.plan_path(cost_map=cost_map, motion_mission=motion_mission)
             planning_time = time.time() - start_time_planning
-            results['path_planning'] = {
-                'success': planning_result['success'],
+            results['path_planning'] = {'success': planning_result['success'],
                 'path': planning_result['path'],
                 'planning_time': planning_result['planning_time'],
                 'iterations': planning_result['iterations'],
@@ -201,7 +199,7 @@ class MotionPlanningPipeline:
         results['overall_success'] = True
         results['total_computation_time'] = total_time
         results['start_position'] = start_position
-        results['target_position'] = target_point.tolist()
+        results['target_position'] = motion_mission['target_position']
 
         self.planning_results = results
         return results

@@ -1,7 +1,7 @@
 import numpy as np
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Tuple
 from multi_modal_sensing import TactileDataManager
-from memory_pool import ObjectManager
+from memory_pool import ObjectRecognitionAndStorage
 from interactive_characteristics_inference import MechanicalPropertyInferrer
 from point_clond_extraction import PointCloudExtractor
 
@@ -20,7 +20,7 @@ class MultiModalTactilePerceptionPipeline:
         Initialize the multi-modal tactile perception pipeline with all necessary components.
         """
         self.tactile_data_manager = TactileDataManager()
-        self.object_manager = ObjectManager()
+        self.object_manager = ObjectRecognitionAndStorage()
         self.mechanical_inferrer = MechanicalPropertyInferrer()
         self.point_cloud_extractor = PointCloudExtractor()
 
@@ -84,7 +84,10 @@ class MultiModalTactilePerceptionPipeline:
         """
         return self.tactile_data_manager.get_contact_data()
 
-    def process_sensory_data(self, tactile_data: Dict[str, List]) -> None:
+    def process_sensory_data(self, tactile_data: Dict[str, List],
+                             objects_dict: Dict[str, Dict[str, Any]],
+                             binary_grid_map: np.ndarray,
+                             history_point_cloud: List[List[float]]):
         """
         Process acquired tactile data to update object dictionary and point cloud history.
 
@@ -92,16 +95,12 @@ class MultiModalTactilePerceptionPipeline:
             tactile_data: Dictionary containing 'approaching_data' and 'contact_data'
         """
         # Process sensory data to update objects_dict and history_point_cloud
-        updated_data = self.object_manager.process_sensory_data(
-            tactile_data=tactile_data,
-            grid_map=self.grid_map,
-            objects_dict=self.objects_dict,
-            history_point_cloud=self.history_point_cloud
+        objects_dict, history_point_cloud = self.object_manager.process_sensory_data(
+            sensing_data=tactile_data,
+            binary_grid_map=binary_grid_map,
+            objects_dict=objects_dict,
+            history_point_cloud=history_point_cloud
         )
-
-        # Update internal data structures with processed results
-        self.objects_dict = updated_data.get('objects_dict', self.objects_dict)
-        self.history_point_cloud = updated_data.get('history_point_cloud', self.history_point_cloud)
 
     def infer_mechanical_properties(self) -> None:
         """
@@ -115,7 +114,7 @@ class MultiModalTactilePerceptionPipeline:
         # Update the objects dictionary with inferred properties
         self.objects_dict = updated_objects_dict
 
-    def extract_point_cloud(self) -> List[np.ndarray]:
+    def extract_point_cloud(self) -> List[List[float]]:
         """
         Extract point cloud from current object dictionary and historical point clouds.
 
@@ -133,7 +132,10 @@ class MultiModalTactilePerceptionPipeline:
 
         return point_cloud
 
-    def run_full_pipeline(self) -> List[np.ndarray]:
+    def run_full_pipeline(self,
+                          objects_dict: Dict[str, Dict[str, Any]],
+                          binary_grid_map: np.ndarray,
+                          history_point_cloud: List[List[float]]) -> List[List[float]]:
         """
         Execute the complete multi-modal tactile perception pipeline.
 
@@ -144,7 +146,10 @@ class MultiModalTactilePerceptionPipeline:
         tactile_data = self.acquire_tactile_data()
 
         # Step 2: Process sensory data to update object dictionary and point cloud history
-        self.process_sensory_data(tactile_data)
+        self.process_sensory_data(tactile_data,
+                                  objects_dict,
+                                  binary_grid_map,
+                                  history_point_cloud)
 
         # Step 3: Infer mechanical properties
         self.infer_mechanical_properties()

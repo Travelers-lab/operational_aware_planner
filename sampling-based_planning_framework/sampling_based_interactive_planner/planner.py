@@ -828,8 +828,8 @@ if __name__ == "__main__":
     result = planner.plan_path(
         cost_map=cost_map,
         motion_mission={
-            'start_position': [10, 10],
-            'target_position': [90, 90]
+            'start_position': np.array([10, 10]),
+            'target_position': np.array([90, 90])
         },
         max_iterations=2000,
         step_size=3.0

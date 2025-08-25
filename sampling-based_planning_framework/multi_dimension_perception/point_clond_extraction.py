@@ -31,7 +31,7 @@ class PointCloudExtractor:
 
     def extract_point_cloud(self,
                             objects_dict: Dict[str, Dict[str, Any]],
-                            history_point_cloud: List[np.ndarray]) -> List[np.ndarray]:
+                            history_point_cloud: List[List[float]]) -> List[List[float]]:
         """
         Extract complete point cloud from objects and history data.
 

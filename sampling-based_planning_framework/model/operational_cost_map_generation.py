@@ -163,6 +163,217 @@ class OperationCostMapGenerator:
             print(f"Error creating mask for shape {shape_type}: {str(e)}")
             return None
 
+    def _create_square_mask(self, params: Dict[str, Any]) -> np.ndarray:
+        """
+        Create a square mask based on parameters.
+
+        Args:
+            params: Dictionary containing square parameters:
+                - center: [x, y] coordinates of center
+                - side_length: length of square side
+
+        Returns:
+            Binary mask with square region filled
+        """
+        mask = np.zeros(self.map_size, dtype=np.uint8)
+
+        center = params.get('center', [0, 0])
+        side_length = params.get('side_length', 0)
+
+        if side_length <= 0:
+            return mask
+
+        # Calculate bounding box coordinates
+        half_side = side_length / 2
+        x_min = max(0, int(center[0] - half_side))
+        x_max = min(self.map_size[1], int(center[0] + half_side))
+        y_min = max(0, int(center[1] - half_side))
+        y_max = min(self.map_size[0], int(center[1] + half_side))
+
+        # Fill the square region
+        mask[y_min:y_max, x_min:x_max] = 1
+
+        return mask
+
+    def _create_circle_mask(self, params: Dict[str, Any]) -> np.ndarray:
+        """
+        Create a circle mask based on parameters.
+
+        Args:
+            params: Dictionary containing circle parameters:
+                - center: [x, y] coordinates of center
+                - radius: radius of circle
+
+        Returns:
+            Binary mask with circular region filled
+        """
+        mask = np.zeros(self.map_size, dtype=np.uint8)
+
+        center = params.get('center', [0, 0])
+        radius = params.get('radius', 0)
+
+        if radius <= 0:
+            return mask
+
+        # Create coordinate grids
+        y_coords, x_coords = np.ogrid[:self.map_size[0], :self.map_size[1]]
+
+        # Calculate distance from center
+        distance = np.sqrt((x_coords - center[0]) ** 2 + (y_coords - center[1]) ** 2)
+
+        # Fill circle region
+        mask[distance <= radius] = 1
+
+        return mask
+
+    def _create_triangle_mask(self, params: Dict[str, Any]) -> np.ndarray:
+        """
+        Create a triangle mask based on parameters.
+
+        Args:
+            params: Dictionary containing triangle parameters:
+                - vertices: list of three [x, y] coordinates
+
+        Returns:
+            Binary mask with triangular region filled
+        """
+        mask = np.zeros(self.map_size, dtype=np.uint8)
+
+        vertices = params.get('vertices', [])
+
+        if len(vertices) != 3:
+            return mask
+
+        # Convert vertices to numpy array
+        triangle_vertices = np.array(vertices, dtype=np.float32)
+
+        # Create coordinate grids
+        x_coords, y_coords = np.meshgrid(np.arange(self.map_size[1]), np.arange(self.map_size[0]))
+        points = np.vstack((x_coords.ravel(), y_coords.ravel())).T
+
+        # Check if points are inside triangle
+        def point_in_triangle(point, triangle):
+            # Barycentric coordinate method
+            v0 = triangle[2] - triangle[0]
+            v1 = triangle[1] - triangle[0]
+            v2 = point - triangle[0]
+
+            dot00 = np.dot(v0, v0)
+            dot01 = np.dot(v0, v1)
+            dot02 = np.dot(v0, v2)
+            dot11 = np.dot(v1, v1)
+            dot12 = np.dot(v1, v2)
+
+            inv_denom = 1 / (dot00 * dot11 - dot01 * dot01)
+            u = (dot11 * dot02 - dot01 * dot12) * inv_denom
+            v = (dot00 * dot12 - dot01 * dot02) * inv_denom
+
+            return (u >= 0) and (v >= 0) and (u + v <= 1)
+
+        # Vectorize the point checking
+        inside_points = []
+        for point in points:
+            if point_in_triangle(point, triangle_vertices):
+                inside_points.append(point)
+
+        if inside_points:
+            inside_points = np.array(inside_points, dtype=int)
+            mask[inside_points[:, 1], inside_points[:, 0]] = 1
+
+        return mask
+
+    def _create_rectangle_mask(self, params: Dict[str, Any]) -> np.ndarray:
+        """
+        Create a rectangle mask based on parameters.
+
+        Args:
+            params: Dictionary containing rectangle parameters:
+                - top_left: [x, y] coordinates of top-left corner
+                - width: width of rectangle
+                - height: height of rectangle
+                OR
+                - center: [x, y] coordinates of center
+                - width: width of rectangle
+                - height: height of rectangle
+
+        Returns:
+            Binary mask with rectangular region filled
+        """
+        mask = np.zeros(self.map_size, dtype=np.uint8)
+
+        if 'top_left' in params:
+            top_left = params.get('top_left', [0, 0])
+            width = params.get('width', 0)
+            height = params.get('height', 0)
+
+            x_min = max(0, int(top_left[0]))
+            y_min = max(0, int(top_left[1]))
+            x_max = min(self.map_size[1], int(top_left[0] + width))
+            y_max = min(self.map_size[0], int(top_left[1] + height))
+
+        elif 'center' in params:
+            center = params.get('center', [0, 0])
+            width = params.get('width', 0)
+            height = params.get('height', 0)
+
+            half_width = width / 2
+            half_height = height / 2
+
+            x_min = max(0, int(center[0] - half_width))
+            x_max = min(self.map_size[1], int(center[0] + half_width))
+            y_min = max(0, int(center[1] - half_height))
+            y_max = min(self.map_size[0], int(center[1] + half_height))
+
+        else:
+            return mask
+
+        if x_min >= x_max or y_min >= y_max:
+            return mask
+
+        # Fill the rectangle region
+        mask[y_min:y_max, x_min:x_max] = 1
+
+        return mask
+
+    def _create_polygon_mask(self, params: Dict[str, Any]) -> np.ndarray:
+        """
+        Create a polygon mask based on parameters.
+
+        Args:
+            params: Dictionary containing polygon parameters:
+                - vertices: list of [x, y] coordinates for polygon vertices
+
+        Returns:
+            Binary mask with polygonal region filled
+        """
+        mask = np.zeros(self.map_size, dtype=np.uint8)
+
+        vertices = params.get('vertices', [])
+
+        if len(vertices) < 3:
+            return mask
+
+        # Convert vertices to numpy array
+        polygon_vertices = np.array(vertices, dtype=np.float32)
+
+        # Create coordinate grids
+        x_coords, y_coords = np.meshgrid(np.arange(self.map_size[1]), np.arange(self.map_size[0]))
+        points = np.vstack((x_coords.ravel(), y_coords.ravel())).T
+
+        # Use matplotlib Path to check if points are inside polygon
+        from matplotlib.path import Path
+        polygon_path = Path(polygon_vertices)
+
+        # Check which points are inside the polygon
+        inside_points = polygon_path.contains_points(points)
+        inside_points = points[inside_points].astype(int)
+
+        # Fill polygon region
+        if len(inside_points) > 0:
+            mask[inside_points[:, 1], inside_points[:, 0]] = 1
+
+        return mask
+
     def visualize_cost_map(self,
                            binary_map: np.ndarray,
                            cost_map: np.ndarray,

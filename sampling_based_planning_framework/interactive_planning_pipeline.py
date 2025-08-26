@@ -36,7 +36,7 @@ class IntegratedMotionPlanningPipeline:
             model_config_path: Path to model configuration file
             device: Device to run the model on (e.g., 'cuda', 'cpu')
         """
-        # Initialize sub-pipelines
+        # Initialize sub-pipeline
         self.perception_pipeline = MultiModalTactilePerceptionPipeline()
         self.map_generation_pipeline = MapGenerationPipeline(
             model_checkpoint_path=model_checkpoint_path,
@@ -122,7 +122,7 @@ class IntegratedMotionPlanningPipeline:
         self.objects_dict = objects_dict.copy()
 
         # Step 1: Run perception pipeline
-        print("Running perception pipeline...")
+        # print("Running perception pipeline...")
         point_cloud = self.perception_pipeline.run_full_pipeline(
             objects_dict=self.objects_dict,
             binary_grid_map=binary_grid_map
@@ -134,7 +134,7 @@ class IntegratedMotionPlanningPipeline:
         # self.history_point_cloud = perception_results.get('history_point_cloud', [])
 
         # Step 2: Run map generation pipeline
-        print("Running map generation pipeline...")
+        # print("Running map generation pipeline...")
         map_generation_results = self.map_generation_pipeline.generate_operational_cost_map(
             point_cloud_coordinates=point_cloud,
             objects_dict=objects_dict,
@@ -152,7 +152,7 @@ class IntegratedMotionPlanningPipeline:
             self.completed_map = self.cost_map  # Fallback if only one map is returned
 
         # Step 3: Run motion planning pipeline
-        print("Running motion planning pipeline...")
+        # print("Running motion planning pipeline...")
         self.planning_results = self.motion_planning_pipeline.execute_full_pipeline(
             cost_map=self.completed_map,
             objects_dict=self.objects_dict,
@@ -176,7 +176,6 @@ class IntegratedMotionPlanningPipeline:
             results.update({
                 'point_cloud': point_cloud,
                 'history_point_cloud': self.history_point_cloud,
-                'perception_results': perception_results,
                 'map_generation_results': map_generation_results,
                 'motion_planning_results': self.planning_results
             })

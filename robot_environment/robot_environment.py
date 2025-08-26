@@ -4,14 +4,10 @@ import pybullet_data
 import random
 import math
 
-from dynamics.robot_kinematics import RobotKinematics
-from impedanceController.impedanceControl import CartesianImpedanceControl
-
 class Robot:
     def __init__(self, bullet_client, path, clint_id):
         self.bullet_client = bullet_client
-        self.description_file = join(dirname(dirname(abspath(__file__))), 'envDescription')
-        self.table_file = join(dirname(dirname(abspath(__file__))), 'environment_description/simulation_table/table.urdf')
+        self.description_file = join(dirname(dirname(abspath(__file__))), 'environment_description')
         self.bullet_client.setAdditionalSearchPath(pybullet_data.getDataPath())
 
         flags = self.bullet_client.URDF_ENABLE_CACHED_GRAPHICS_SHAPES
@@ -22,7 +18,7 @@ class Robot:
 
         self.bullet_client.loadURDF("plane.urdf", physicsClientId=clint_id)
 
-        self.bullet_client.loadURDF(fileName=self.table_file,
+        self.bullet_client.loadURDF(fileName=join(self.description_file, "simulation_table/table.urdf"),
                                     basePosition=np.array([0.9, 0.3, 0.0]),
                                     baseOrientation=[0, 0, 0, 1], flags=flags,
                                     useFixedBase=1,
@@ -47,10 +43,10 @@ class Robot:
         # self.robotEndEffectorIndex = 11
         self.robotEndEffectorIndex = self.available_joint_indexes[-1]
         self.t = 0.
-        DH_param = [[1.2465, 0, 0.262, 0], [0.36685, 0., 0.0, -1.5708], [0, 0, 0, 1.5708], [0, 0, -0.24335, 0],
-                     [0.00945, 0, -0.2132, 0], [0.08535, 0, 0, 1.5708], [0.0, 0, 0, -1.5708], [0.0921, 0, 0, 0.0]]
-        self.kinematics = RobotKinematics(DH_param)
-        self.impedance_controller = CartesianImpedanceControl(kp=[10, 10], kd=[3,3])
+        # DH_param = [[1.2465, 0, 0.262, 0], [0.36685, 0., 0.0, -1.5708], [0, 0, 0, 1.5708], [0, 0, -0.24335, 0],
+        #              [0.00945, 0, -0.2132, 0], [0.08535, 0, 0, 1.5708], [0.0, 0, 0, -1.5708], [0.0921, 0, 0, 0.0]]
+        # self.kinematics = RobotKinematics(DH_param)
+        # self.impedance_controller = CartesianImpedanceControl(kp=[10, 10], kd=[3,3])
 
         # rp = np.array([-1.5708, 2.5, 0, 0, 0, 0.0, 0., 0.0, 0, 0, 0, 0, 0, 0])
         rp = np.array([-3.14159, -1.5707, 1.5708, 0, 0, 3.14159, 0, 0.0, 0, 0, 0, 0, 0, 0])

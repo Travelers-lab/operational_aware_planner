@@ -1,7 +1,7 @@
 from enum import Enum, auto
 from typing import Dict, Any, Optional, Union
 import numpy as np
-from tactile_perception import approaching_sensing, contact_sensing
+from sampling_based_planning_framework.multi_dimension_perception.tactile_perception import approaching_sensing, contact_sensing
 
 
 class TactileDataTypes(Enum):
@@ -48,7 +48,7 @@ class TactileDataManager:
             self.sensor_transform_matrix = sensor_transform_matrix
 
         if robots is not None:
-            self.robots = robots if isinstance(robots, list) else [robots]
+            self.robots = robots if isinstance(robots, int) else robots[0]
 
         if objectsId is not None:
             self.objectsId = objectsId if isinstance(objectsId, list) else [objectsId]

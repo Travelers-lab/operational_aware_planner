@@ -131,11 +131,11 @@ class RobotPlanningTester:
            Initialize pipeline component for motion planning.
         """
         self.planning_pipeline = IntegratedMotionPlanningPipeline(config=self.config,
-                                                                  sensor_transform_matrix=self.robot_env.transformMatrix(self.config.body_link),
+                                                                  sensor_transform_matrix=self.robot_env.transformMatrix(self.config.perception_config.body_link),
                                                                   robots=self.robot_env.robot,
                                                                   objectsId=self.robot_env.object)
         self.impedance_controller = TwoDImpedanceController()
-        self.impedance_controller.initialize_position_control(self.config.position_K)
+        self.impedance_controller.initialize_position_control(self.config.motion_planning_config.position_K)
 
     def _generate_obstacle_positions(self,
                                      count: int,
@@ -215,13 +215,9 @@ class RobotPlanningTester:
         robot_state = self.get_robot_state()
         current_pos = robot_state["pos"][:2]  # Use only x, y coordinates
 
-        # Convert to grid coordinates
-        grid_start = self.workspace_to_grid(current_pos)
-        grid_target = self.workspace_to_grid(target_position[:2])
-
         motion_mission = {
-            'start_position': grid_start,
-            'target_position': grid_target,
+            'start_position': current_pos,
+            'target_position': target_position,
             'mission_type': 'navigation',
             'constraints': {
                 'max_velocity': 2.0,
@@ -243,7 +239,10 @@ class RobotPlanningTester:
             Planning results dictionary
         """
         if self.planning_pipeline is None:
-            self.planning_pipeline = IntegratedMotionPlanningPipeline()
+            self.planning_pipeline = IntegratedMotionPlanningPipeline(config=self.config,
+                                                                  sensor_transform_matrix=self.robot_env.transformMatrix(self.config.perception_config.body_link),
+                                                                  robots=self.robot_env.robot,
+                                                                  objectsId=self.robot_env.object)
 
         # Run planning pipeline
         results = self.planning_pipeline.run_full_pipeline(

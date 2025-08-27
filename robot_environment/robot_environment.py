@@ -41,18 +41,18 @@ class Robot:
                                                      controlMode=self.bullet_client.VELOCITY_CONTROL,
                                                      force=0)
         # self.robotEndEffectorIndex = 11
-        self.robotEndEffectorIndex = self.available_joint_indexes[-1]
+        self.robotEndEffectorIndex = self.fixed_joint_indexes[-1]
         self.t = 0.
         # DH_param = [[1.2465, 0, 0.262, 0], [0.36685, 0., 0.0, -1.5708], [0, 0, 0, 1.5708], [0, 0, -0.24335, 0],
         #              [0.00945, 0, -0.2132, 0], [0.08535, 0, 0, 1.5708], [0.0, 0, 0, -1.5708], [0.0921, 0, 0, 0.0]]
         # self.kinematics = RobotKinematics(DH_param)
         # self.impedance_controller = CartesianImpedanceControl(kp=[10, 10], kd=[3,3])
 
-        # rp = np.array([-1.5708, 2.5, 0, 0, 0, 0.0, 0., 0.0, 0, 0, 0, 0, 0, 0])
-        rp = np.array([-3.14159, -1.5707, 1.5708, 0, 0, 3.14159, 0, 0.0, 0, 0, 0, 0, 0, 0])
-        for joint_Index in range(len(self.available_joint_indexes)):
-            self.bullet_client.resetJointState(self.robot, self.available_joint_indexes[joint_Index],
-                                               rp[joint_Index])
+        rp = np.array([-1.5708, 2.5, 0, 0, 0, 0.0, 0., 0.0, 0, 0, 0, 0, 0, 0])
+        # rp = np.array([-3.14159, -1.5707, 1.5708, 0, 0, 3.14159, 0, 0.0, 0, 0, 0, 0, 0, 0])
+        for joint_index in range(len(self.available_joint_indexes)):
+            self.bullet_client.resetJointState(self.robot, self.available_joint_indexes[joint_index],
+                                               rp[joint_index])
 
         self.object = []
 

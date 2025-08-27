@@ -1,9 +1,9 @@
 import numpy as np
 from typing import Dict, List, Any, Optional, Union
-from multi_modal_sensing import TactileDataManager
-from memory_pool import ObjectRecognitionAndStorage
-from interactive_characteristics_inference import MechanicalPropertyInferrer
-from point_clond_extraction import PointCloudExtractor
+from sampling_based_planning_framework.multi_dimension_perception.multi_modal_sensing import TactileDataManager
+from sampling_based_planning_framework.multi_dimension_perception.memory_pool import ObjectRecognitionAndStorage
+from sampling_based_planning_framework.multi_dimension_perception.interactive_characteristics_inference import MechanicalPropertyInferrer
+from sampling_based_planning_framework.multi_dimension_perception.point_clond_extraction import PointCloudExtractor
 
 
 
@@ -96,10 +96,10 @@ class MultiModalTactilePerceptionPipeline:
             tactile_data: Dictionary containing 'approaching_data' and 'contact_data'
         """
         # Process sensory data to update objects_dict and history_point_cloud
-        objects_dict, history_point_cloud = self.object_manager.process_sensory_data(
-            sensing_data=tactile_data,
-            binary_grid_map=binary_grid_map,
-            objects_dict=objects_dict,
+        objects_dict, history_point_cloud = self.object_manager.process_tactile_data(
+            tactile_data=tactile_data,
+            grid_map=binary_grid_map,
+            object_dict=objects_dict,
             history_point_cloud=history_point_cloud
         )
 

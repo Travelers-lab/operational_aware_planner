@@ -1,12 +1,9 @@
-
 import numpy as np
 from typing import Dict, List, Tuple, Any, Optional, Union
-
-from sampling_based_interactive_planner.motion_planning_pipeline import MotionPlanningPipeline
-from model.operational_aware_map_pipeline import MapGenerationPipeline
-from multi_dimension_perception.environmental_sensing_pipeline import MultiModalTactilePerceptionPipeline
-
-
+from sampling_based_planning_framework.model.operational_aware_map_pipeline import MapGenerationPipeline
+from sampling_based_planning_framework.sampling_based_interactive_planner.motion_planning_pipeline import MotionPlanningPipeline
+from sampling_based_planning_framework.multi_dimension_perception.environmental_sensing_pipeline import MultiModalTactilePerceptionPipeline
+from sampling_based_planning_framework.utils.utils import CoordinateConverter
 
 class IntegratedMotionPlanningPipeline:
     """
@@ -46,6 +43,8 @@ class IntegratedMotionPlanningPipeline:
         self.cost_map = None
         self.completed_map = None
         self.planning_results = None
+        self.coord_transform = CoordinateConverter(config.perception_config.workspace_bounds,
+                                                   config.perception_config.grid_resolution)
 
     def set_sensor_parameters(self,
                               sensor_transform_matrix: Optional[np.ndarray] = None,
@@ -151,11 +150,15 @@ class IntegratedMotionPlanningPipeline:
         self.planning_results = self.motion_planning_pipeline.execute_full_pipeline(
             cost_map=self.completed_map,
             objects_dict=self.objects_dict,
-            motion_mission=motion_mission
+            motion_mission=motion_mission,
+            map_to_grid=self.coord_transform
         )
 
         # Trajectory Optimization
-        planned_trajectory = [self.perception_pipeline.object_manager.coordinate_transform(grid, to_grid=False) for grid in self.planning_results['path_planning']['path']]
+
+        print(self.planning_results)
+        planned_trajectory = [self.perception_pipeline.object_manager.coordinate_transform(grid, to_grid=False)
+                              for grid in self.planning_results['path_planning']['path']]
         optimized_path = self.motion_planning_pipeline.optimize_trajectory(planned_trajectory)
 
         # Prepare final results

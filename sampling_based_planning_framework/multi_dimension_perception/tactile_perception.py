@@ -33,7 +33,7 @@ def contact_sensing(robots, objectsId):
     contact_data = []
     for i in range(len(objectsId)):
         points = p.getContactPoints(bodyA=robots,
-                                   bodyB=objectsId[i], linkIndexA=[11])
+                                   bodyB=objectsId[i], linkIndexA=11)
         body_states = p.getLinkState(objectsId[i], 0)
         if len(points) == 1:
             if len(points[0]) == 14:

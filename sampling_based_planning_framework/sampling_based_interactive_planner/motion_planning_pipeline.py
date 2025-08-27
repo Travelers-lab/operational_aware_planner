@@ -1,9 +1,9 @@
 import numpy as np
 from typing import Dict, List, Any, Tuple, Optional, Union
 import time
-from motion_intent import MotionIntentRecognizer
-from planner import RRTConnectPlanner
-from trajectory_optimization import SamplingPointOptimizer
+from sampling_based_planning_framework.sampling_based_interactive_planner.motion_intent import MotionIntentRecognizer
+from sampling_based_planning_framework.sampling_based_interactive_planner.planner import RRTConnectPlanner
+from sampling_based_planning_framework.sampling_based_interactive_planner.trajectory_optimization import SamplingPointOptimizer
 
 
 
@@ -105,14 +105,16 @@ class MotionPlanningPipeline:
     def execute_full_pipeline(self,
                               cost_map: np.ndarray,
                               objects_dict: Dict[str, Dict[str, Any]],
-                              motion_mission: Dict[str, Any]) -> Dict[str, Any]:
+                              motion_mission: Dict[str, Any],
+                              map_to_grid) -> Dict[str, Any]:
         """
         Execute the complete motion planning pipeline.
 
         Args:
-            start_position: Starting point coordinates (x, y)
+            cost_map: Starting point coordinates (x, y)
             objects_dict: Dictionary containing object information
-            motion_target: Initial motion target coordinates
+            motion_mission: Initial motion target coordinates
+            map_to_grid: Function for workspace to grid map transformation
 
         Returns:
             Dictionary containing all planning results and metrics
@@ -140,6 +142,9 @@ class MotionPlanningPipeline:
             }
             results['overall_success'] = False
             return results
+
+        motion_mission['start_position'] = map_to_grid.world_to_grid(motion_mission['start_position'], to_grid=True)
+        motion_mission['target_position'] = map_to_grid.world_to_grid(motion_mission['target_position'], to_grid=True)
 
         # Step 2: Path Planning with RRT-Connect
         start_time_planning = time.time()

@@ -13,6 +13,7 @@ class MapGenerationConfig:
     model_checkpoint_path: Optional[str] = None
     model_config_path: Optional[str] = None
     device: str = "cuda:0"
+    operation_limits: List = None
 
 
 @dataclass
@@ -22,6 +23,7 @@ class PerceptionConfig:
     grid_resolution: int = 100
     contact_threshold: float = 0.005
     min_object_points: int = 10
+    body_link: List = None
 
 
 @dataclass
@@ -35,6 +37,7 @@ class OperationLimits:
 class MotionPlanningConfig:
     """Configuration for motion planning module."""
     operation_limits: OperationLimits = field(default_factory=OperationLimits)
+    position_K: List = None
 
 
 @dataclass

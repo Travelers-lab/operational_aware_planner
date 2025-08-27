@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional, Union, List
 import json
 from pathlib import Path
 import logging
-from space_topology import MapCompletionNet
+from sampling_based_planning_framework.model.space_topology import MapCompletionNet
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

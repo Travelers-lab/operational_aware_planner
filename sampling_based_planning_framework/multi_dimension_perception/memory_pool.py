@@ -35,7 +35,7 @@ class ObjectRecognitionAndStorage:
             config: Configuration object containing workspace and resolution parameters
         """
         self.config = config
-        self.work_space = config.work_space
+        self.work_space = config.workspace_bounds
         self.grid_resolution = config.grid_resolution
         self.contact_threshold = config.contact_threshold
 

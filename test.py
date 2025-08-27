@@ -1,3 +1,6 @@
+import sys
+print(sys.path)
+from sampling_based_planning_framework.sampling_based_interactive_planner
 def diagnose_and_fix_path_issues():
     """
     Comprehensive diagnosis and fix for Python path issues.
@@ -56,9 +59,9 @@ def diagnose_and_fix_path_issues():
 
 
 # 运行诊断和修复
-if __name__ == "__main__":
-    success = diagnose_and_fix_path_issues()
-    if success:
-        print("\n🎉 Path issues fixed! You can now import your modules.")
-    else:
-        print("\n⚠️  Some issues may still exist. Check your project structure.")
+# if __name__ == "__main__":
+#     success = diagnose_and_fix_path_issues()
+#     if success:
+#         print("\n🎉 Path issues fixed! You can now import your modules.")
+#     else:
+#         print("\n⚠️  Some issues may still exist. Check your project structure.")

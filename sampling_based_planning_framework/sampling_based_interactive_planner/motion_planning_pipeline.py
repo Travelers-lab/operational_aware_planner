@@ -1,9 +1,10 @@
 import numpy as np
-from typing import Dict, List, Any, Tuple, Optional
+from typing import Dict, List, Any, Tuple, Optional, Union
 import time
 from motion_intent import MotionIntentRecognizer
 from planner import RRTConnectPlanner
 from trajectory_optimization import SamplingPointOptimizer
+
 
 
 class MotionPlanningPipeline:
@@ -166,26 +167,26 @@ class MotionPlanningPipeline:
             return results
 
         # Step 3: Trajectory Optimization
-        start_time_optimization = time.time()
-        try:
-            optimized_path = self.optimize_trajectory(planning_result['path'])
-            optimization_time = time.time() - start_time_optimization
-            results['trajectory_optimization'] = {
-                'success': True,
-                'optimized_path': optimized_path,
-                'original_points': len(planning_result['path']),
-                'optimized_points': len(optimized_path),
-                'computation_time': optimization_time
-            }
-        except Exception as e:
-            optimization_time = time.time() - start_time_optimization
-            results['trajectory_optimization'] = {
-                'success': False,
-                'error': str(e),
-                'computation_time': optimization_time
-            }
-            results['overall_success'] = False
-            return results
+        # start_time_optimization = time.time()
+        # try:
+        #     optimized_path = self.optimize_trajectory(planning_result['path'])
+        #     optimization_time = time.time() - start_time_optimization
+        #     results['trajectory_optimization'] = {
+        #         'success': True,
+        #         'optimized_path': optimized_path,
+        #         'original_points': len(planning_result['path']),
+        #         'optimized_points': len(optimized_path),
+        #         'computation_time': optimization_time
+        #     }
+        # except Exception as e:
+        #     optimization_time = time.time() - start_time_optimization
+        #     results['trajectory_optimization'] = {
+        #         'success': False,
+        #         'error': str(e),
+        #         'computation_time': optimization_time
+        #     }
+        #     results['overall_success'] = False
+        #     return results
 
         # Calculate quality metrics for the optimized path
         try:
@@ -195,7 +196,7 @@ class MotionPlanningPipeline:
             results['quality_metrics'] = {'error': str(e)}
 
         # Overall results
-        total_time = intent_time + planning_time + optimization_time
+        total_time = intent_time + planning_time
         results['overall_success'] = True
         results['total_computation_time'] = total_time
         results['start_position'] = start_position

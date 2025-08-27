@@ -18,47 +18,6 @@ try:
 except ImportError as e:
     print(f"Import warning: {e}")
 
-
-    # Create dummy classes for testing
-    class Robot:
-        def __init__(self, robot_urdf, table_urdf):
-            pass
-
-        def load_environment(self, obstacle_positions, obstacle_probability=0.5):
-            pass
-
-        def get_effector_states(self):
-            return {"pos": [0.5, 0.3, 0.1], "vel": [0.0, 0.0, 0.0]}
-
-        def torque_control_step(self, force):
-            pass
-
-        def reset_simulation(self):
-            pass
-
-        def close(self):
-            pass
-
-
-    class IntegratedMotionPlanningPipeline:
-        def __init__(self):
-            pass
-
-        def run_full_pipeline(self, objects_dict, history_point_cloud, grid_map):
-            return {'planning_success': True, 'planned_path': [[0, 0], [1, 1], [2, 2]]}
-
-
-    class TwoDImpedanceController:
-        def __init__(self):
-            pass
-
-        def initialize_position_control(self, K):
-            pass
-
-        def compute_force(self, current_position, desired_position):
-            return [0.0, 0.0]
-
-
 @dataclass
 class TestResult:
     """Data class to store test results"""
@@ -71,7 +30,6 @@ class TestResult:
     start_position: List[float]
     target_position: List[float]
     obstacles_count: int
-    execution_time: float
     final_error: float
 
 
@@ -118,17 +76,51 @@ class RobotPlanningTester:
         # Initialize grid mapping
         self._initialize_grid_map()
 
-    def load_environment(self,
-                         obstacle_count: int = 3,
-                         min_obstacle_distance: float = 0.1) -> None:
+    def run_test(self, test_id)-> Dict[str, Any]:
+        """
+        Running simulation tests.
+        :return:
+        """
+        self.load_environment()
+        self.init_planning_component()
+        target_point = self.generate_test_task()
+        motion_mission = self.create_motion_mission(target_point)
+        should_execute = True
+        execution_success = False
+        while should_execute:
+            planning_results = self.plan_motion(motion_mission)
+            # Evaluate planning result
+            should_execute = self.evaluate_planning_result(planning_results, motion_mission)
+
+            execution_success = False
+            execution_time = 0.0
+            final_error = 0.0
+
+            if should_execute and planning_results.get('planned_path'):
+                # Execute planned motion
+                execution_success, execution_time = self.execute_planned_motion(
+                    planning_results['planned_path']
+                )
+        test_result = {"test_id":test_id,
+                       " planning_success": execution_success,}
+
+        #     planning_success=planning_results.get('planning_success', False),
+        #     execution_success=execution_success,
+        #     planning_time=planning_time,
+        #     path_length=len(planning_results.get('planned_path', [])),
+        #     path_cost=planning_results.get('path_cost', float('inf')),
+        #     start_position=motion_mission['start_position'],
+        #     target_position=motion_mission['target_position'],
+        #     obstacles_count=len(self.objects_dict),
+        #     final_error=final_error
+        # )
+        self.test_results.append(test_result)
+        return test_result
+
+
+    def load_environment(self) -> None:
         """
         Load the robot simulation environment with obstacles.
-
-        Args:
-            robot_urdf_path: Path to robot URDF file
-            table_urdf_path: Path to table URDF file
-            obstacle_count: Number of obstacles to generate
-            min_obstacle_distance: Minimum distance between obstacles
         """
         print("Loading robot environment...")
         self.client1 = p.connect(p.GUI)
@@ -142,11 +134,11 @@ class RobotPlanningTester:
 
         # Generate random obstacle positions
         obstacle_positions = self._generate_obstacle_positions(
-            obstacle_count, min_obstacle_distance
+            self.config.obstacle_count, self.config.min_obstacle_distance
         )
 
         # Load environment with obstacles
-        self.robot_env.load_environment(obstacle_positions, obstacle_probability=0.5)
+        self.robot_env.load_environment(obstacle_positions, fix_prob=0.5)
 
         print(f"Environment loaded with {len(obstacle_positions)} obstacles")
 
@@ -157,7 +149,11 @@ class RobotPlanningTester:
         self.planning_pipeline = IntegratedMotionPlanningPipeline(sensor_transform_matrix=self.robot_env.transformMatrix(self.config.body_link),
                                                                   robots=self.robot_env.robot,
                                                                   objectsId=self.robot_env.object,
-                                                                  model_checkpoint_path=self.config.)
+                                                                  model_checkpoint_path=self.config.model_checkpoint_path,
+                                                                  model_config_path=self.config.model_config_path,
+                                                                  device=self.config.device)
+        self.impedance_controller = TwoDImpedanceController()
+        self.impedance_controller.initialize_position_control(self.config.position_K)
 
     def _generate_obstacle_positions(self,
                                      count: int,
@@ -266,9 +262,8 @@ class RobotPlanningTester:
         """
         x = random.uniform(self.workspace_bounds[0][0], self.workspace_bounds[1][0])
         y = random.uniform(self.workspace_bounds[0][1], self.workspace_bounds[1][1])
-        z = 0.0  # Assuming target is on table surface
 
-        return [x, y, z]
+        return [x, y]
 
     def get_robot_state(self) -> Dict[str, List[float]]:
         """
@@ -329,7 +324,8 @@ class RobotPlanningTester:
         results = self.planning_pipeline.run_full_pipeline(
             objects_dict=self.objects_dict,
             history_point_cloud=self.history_point_cloud,
-            grid_map=self.grid_map
+            binary_grid_map=self.grid_map,
+            motion_mission=motion_mission
         )
 
         return results
@@ -380,14 +376,10 @@ class RobotPlanningTester:
             self.impedance_controller = TwoDImpedanceController()
             self.impedance_controller.initialize_position_control(K=[100.0, 100.0])
 
-        # Convert path to workspace coordinates and limit points
-        workspace_path = [self.grid_to_workspace(point) for point in planned_path[:max_points]]
-
         execution_success = True
-        start_time = time.time()
 
         try:
-            for i, target_point in enumerate(workspace_path):
+            for i, target_point in enumerate(planned_path[:max_points]):
                 # Get current robot state
                 robot_state = self.get_robot_state()
                 current_pos = robot_state["pos"][:2]  # Use only x, y
@@ -399,86 +391,84 @@ class RobotPlanningTester:
                 self.robot_env.torque_control_step(force)
 
                 # Small delay for simulation stability
-                time.sleep(0.01)
+                p.stepSimulation(physicsClientId=self.client1)
+                time.sleep(self.teme_step)
 
                 # Check if we're close to target
-                if i == len(workspace_path) - 1:
+                if i == max_points - 1:
                     final_error = np.sqrt((current_pos[0] - target_point[0]) ** 2 +
                                           (current_pos[1] - target_point[1]) ** 2)
-                    if final_error > 0.05:  # 5cm error threshold
+                    if final_error > 0.005:  # 5mm error threshold
                         execution_success = False
 
         except Exception as e:
             print(f"Error during motion execution: {e}")
             execution_success = False
 
-        execution_time = time.time() - start_time
-        return execution_success, execution_time
+        return execution_success
 
-    def run_test(self, test_id: str = None) -> TestResult:
-        """
-        Run a complete test case.
-
-        Args:
-            test_id: Optional test identifier
-
-        Returns:
-            Test result object
-        """
-        if test_id is None:
-            test_id = f"test_{len(self.test_results) + 1:04d}"
-
-        print(f"Running test: {test_id}")
-
-        # Generate test task
-        target_position = self.generate_test_task()
-
-        # Create motion mission
-        motion_mission = self.create_motion_mission(target_position)
-
-        # Plan motion
-        planning_start_time = time.time()
-        planning_results = self.plan_motion(motion_mission)
-        planning_time = time.time() - planning_start_time
-
-        # Evaluate planning result
-        should_execute = self.evaluate_planning_result(planning_results, motion_mission)
-
-        execution_success = False
-        execution_time = 0.0
-        final_error = 0.0
-
-        if should_execute and planning_results.get('planned_path'):
-            # Execute planned motion
-            execution_success, execution_time = self.execute_planned_motion(
-                planning_results['planned_path']
-            )
-
-            # Calculate final error
-            final_state = self.get_robot_state()
-            final_pos = final_state["pos"][:2]
-            final_error = np.sqrt((final_pos[0] - target_position[0]) ** 2 +
-                                  (final_pos[1] - target_position[1]) ** 2)
-
-        # Create test result
-        test_result = TestResult(
-            test_id=test_id,
-            planning_success=planning_results.get('planning_success', False),
-            execution_success=execution_success,
-            planning_time=planning_time,
-            path_length=len(planning_results.get('planned_path', [])),
-            path_cost=planning_results.get('path_cost', float('inf')),
-            start_position=motion_mission['start_position'],
-            target_position=motion_mission['target_position'],
-            obstacles_count=len(self.objects_dict),
-            execution_time=execution_time,
-            final_error=final_error
-        )
-
-        self.test_results.append(test_result)
-        self._save_test_result(test_result)
-
-        return test_result
+    # def run_test(self, test_id: str = None) -> TestResult:
+    #     """
+    #     Run a complete test case.
+    #
+    #     Args:
+    #         test_id: Optional test identifier
+    #
+    #     Returns:
+    #         Test result object
+    #     """
+    #     if test_id is None:
+    #         test_id = f"test_{len(self.test_results) + 1:04d}"
+    #
+    #     print(f"Running test: {test_id}")
+    #
+    #     # Generate test task
+    #     target_position = self.generate_test_task()
+    #
+    #     # Create motion mission
+    #     motion_mission = self.create_motion_mission(target_position)
+    #
+    #     # Plan motion
+    #     planning_start_time = time.time()
+    #     planning_results = self.plan_motion(motion_mission)
+    #     planning_time = time.time() - planning_start_time
+    #
+    #     # Evaluate planning result
+    #     should_execute = self.evaluate_planning_result(planning_results, motion_mission)
+    #
+    #     execution_success = False
+    #     final_error = 0.0
+    #
+    #     if should_execute and planning_results.get('planned_path'):
+    #         # Execute planned motion
+    #         execution_success = self.execute_planned_motion(
+    #             planning_results['planned_path']
+    #         )
+    #
+    #         # Calculate final error
+    #         final_state = self.get_robot_state()
+    #         final_pos = final_state["pos"][:2]
+    #         final_error = np.sqrt((final_pos[0] - target_position[0]) ** 2 +
+    #                               (final_pos[1] - target_position[1]) ** 2)
+    #
+    #     # Create test result
+    #     test_result = TestResult(
+    #         test_id=test_id,
+    #         planning_success=planning_results.get('planning_success', False),
+    #         execution_success=execution_success,
+    #         planning_time=planning_time,
+    #         path_length=len(planning_results.get('planned_path', [])),
+    #         path_cost=planning_results.get('path_cost', float('inf')),
+    #         start_position=motion_mission['start_position'],
+    #         target_position=motion_mission['target_position'],
+    #         obstacles_count=len(self.objects_dict),
+    #         final_error=final_error
+    #     )
+    #
+    #     self.test_results.append(test_result)
+    #     self._save_test_result(test_result)
+    #
+    #     return test_result
 
     def _save_test_result(self, test_result: TestResult) -> None:
         """

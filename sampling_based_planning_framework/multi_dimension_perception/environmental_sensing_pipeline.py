@@ -15,12 +15,12 @@ class MultiModalTactilePerceptionPipeline:
     inferring mechanical properties, and extracting point clouds from the processed data.
     """
 
-    def __init__(self):
+    def __init__(self, config):
         """
         Initialize the multi-modal tactile perception pipeline with all necessary components.
         """
         self.tactile_data_manager = TactileDataManager()
-        self.object_manager = ObjectRecognitionAndStorage()
+        self.object_manager = ObjectRecognitionAndStorage(config)
         self.mechanical_inferrer = MechanicalPropertyInferrer()
         self.point_cloud_extractor = PointCloudExtractor()
 

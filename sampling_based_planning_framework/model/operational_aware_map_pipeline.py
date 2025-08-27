@@ -20,11 +20,7 @@ class MapGenerationPipeline:
     3. OperationCostMapGenerator: Generates operational cost maps from completed binary maps
     """
 
-    def __init__(self,
-                 model_checkpoint_path: str,
-                 operation_limits: List[float] = [400, 400, 20],
-                 device: Optional[str] = None,
-                 model_config_path: Optional[str] = None):
+    def __init__(self,config):
         """
         Initialize the map generation pipeline.
 
@@ -37,11 +33,11 @@ class MapGenerationPipeline:
         # Initialize components
         self.binary_generator = BinaryMapGenerator()
         self.map_predictor = MapCompletionPredictor(
-            checkpoint_path=model_checkpoint_path,
-            device=device,
-            config_path=model_config_path
+            checkpoint_path=config.model_checkpoint_path,
+            device=config.device,
+            config_path=config.model_config_path
         )
-        self.cost_generator = OperationCostMapGenerator(operation_limits=operation_limits)
+        self.cost_generator = OperationCostMapGenerator(operation_limits=config.operation_limits)
 
         logger.info("MapGenerationPipeline initialized successfully")
 

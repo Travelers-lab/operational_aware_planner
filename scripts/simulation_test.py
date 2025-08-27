@@ -3,20 +3,17 @@ import pybullet as p
 import pybullet_data as pd
 import time
 import json
-import os
+from os.path import join, dirname, abspath
 from typing import Dict, List, Tuple, Any, Optional
 from pathlib import Path
 import random
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
 
-# Import required modules
-try:
-    from robot_environment.robot_environment import Robot
-    from sampling_based_planning_framework.interactive_planning_pipeline import IntegratedMotionPlanningPipeline
-    from sampling_based_planning_framework.complaint_controller.impedance_controller import TwoDImpedanceController
-except ImportError as e:
-    print(f"Import warning: {e}")
+from robot_environment.robot_environment import Robot
+from sampling_based_planning_framework.interactive_planning_pipeline import IntegratedMotionPlanningPipeline
+from sampling_based_planning_framework.complaint_controller.impedance_controller import TwoDImpedanceController
+
 
 @dataclass
 class TestResult:
@@ -55,11 +52,11 @@ class RobotPlanningTester:
             grid_resolution: Resolution for grid mapping
         """
         self.config = config
-        self.results_dir = Path(config.results_dir)
+        self.assets_path = join(dirname(dirname(abspath(__file__))), "assets")
+        self.results_dir = Path(self.assets_path)
         self.results_dir.mkdir(exist_ok=True)
         self.teme_step = 1/200.0
-        self.workspace_bounds = config.workspace_bounds
-        self.grid_resolution = config.grid_resolution
+        self.workspace_bounds = config.perception_config.workspace_bounds
         self.robot_env = None
         self.planning_pipeline = None
         self.impedance_controller = None
@@ -72,9 +69,6 @@ class RobotPlanningTester:
         self.history_point_cloud = []
         self.grid_map = None
         self.test_results = []
-
-        # Initialize grid mapping
-        self._initialize_grid_map()
 
     def run_test(self, test_id)-> Dict[str, Any]:
         """
@@ -102,18 +96,7 @@ class RobotPlanningTester:
                     planning_results['planned_path']
                 )
         test_result = {"test_id":test_id,
-                       " planning_success": execution_success,}
-
-        #     planning_success=planning_results.get('planning_success', False),
-        #     execution_success=execution_success,
-        #     planning_time=planning_time,
-        #     path_length=len(planning_results.get('planned_path', [])),
-        #     path_cost=planning_results.get('path_cost', float('inf')),
-        #     start_position=motion_mission['start_position'],
-        #     target_position=motion_mission['target_position'],
-        #     obstacles_count=len(self.objects_dict),
-        #     final_error=final_error
-        # )
+                       " planning_success": execution_success}
         self.test_results.append(test_result)
         return test_result
 
@@ -130,11 +113,12 @@ class RobotPlanningTester:
         p.setTimeStep(self.teme_step)
 
         # Initialize robot environment
-        self.robot_env = Robot(p, self.config.robot_urdf_path, self.client1)
+        self.robot_env = Robot(p, self.config.simulation_test_config.robot_urdf_path, self.client1)
 
         # Generate random obstacle positions
         obstacle_positions = self._generate_obstacle_positions(
-            self.config.obstacle_count, self.config.min_obstacle_distance
+            self.config.simulation_test_config.obstacle_count,
+            self.config.simulation_test_config.min_obstacle_distance
         )
 
         # Load environment with obstacles
@@ -146,12 +130,10 @@ class RobotPlanningTester:
         """
            Initialize pipeline component for motion planning.
         """
-        self.planning_pipeline = IntegratedMotionPlanningPipeline(sensor_transform_matrix=self.robot_env.transformMatrix(self.config.body_link),
+        self.planning_pipeline = IntegratedMotionPlanningPipeline(config=self.config,
+                                                                  sensor_transform_matrix=self.robot_env.transformMatrix(self.config.body_link),
                                                                   robots=self.robot_env.robot,
-                                                                  objectsId=self.robot_env.object,
-                                                                  model_checkpoint_path=self.config.model_checkpoint_path,
-                                                                  model_config_path=self.config.model_config_path,
-                                                                  device=self.config.device)
+                                                                  objectsId=self.robot_env.object)
         self.impedance_controller = TwoDImpedanceController()
         self.impedance_controller.initialize_position_control(self.config.position_K)
 
@@ -195,63 +177,6 @@ class RobotPlanningTester:
             attempts += 1
 
         return positions
-
-    def _initialize_grid_map(self) -> None:
-        """
-        Initialize the grid map by discretizing the workspace.
-        """
-        x_min, y_min = self.workspace_bounds[0]
-        x_max, y_max = self.workspace_bounds[1]
-
-        # Create empty grid map
-        self.grid_map = np.zeros((self.grid_resolution, self.grid_resolution), dtype=np.float32)
-
-        # Store grid parameters for coordinate conversion
-        self.grid_params = {
-            'x_min': x_min,
-            'y_min': y_min,
-            'x_max': x_max,
-            'y_max': y_max,
-            'x_range': x_max - x_min,
-            'y_range': y_max - y_min,
-            'resolution': self.grid_resolution
-        }
-
-    def workspace_to_grid(self, workspace_coord: List[float]) -> List[int]:
-        """
-        Convert workspace coordinates to grid coordinates.
-
-        Args:
-            workspace_coord: Workspace coordinates [x, y]
-
-        Returns:
-            Grid coordinates [grid_x, grid_y]
-        """
-        x, y = workspace_coord
-        grid_x = int((x - self.grid_params['x_min']) / self.grid_params['x_range'] * self.grid_params['resolution'])
-        grid_y = int((y - self.grid_params['y_min']) / self.grid_params['y_range'] * self.grid_params['resolution'])
-
-        # Clamp to grid boundaries
-        grid_x = max(0, min(self.grid_params['resolution'] - 1, grid_x))
-        grid_y = max(0, min(self.grid_params['resolution'] - 1, grid_y))
-
-        return [grid_x, grid_y]
-
-    def grid_to_workspace(self, grid_coord: List[int]) -> List[float]:
-        """
-        Convert grid coordinates to workspace coordinates.
-
-        Args:
-            grid_coord: Grid coordinates [grid_x, grid_y]
-
-        Returns:
-            Workspace coordinates [x, y]
-        """
-        grid_x, grid_y = grid_coord
-        x = self.grid_params['x_min'] + (grid_x / self.grid_params['resolution']) * self.grid_params['x_range']
-        y = self.grid_params['y_min'] + (grid_y / self.grid_params['resolution']) * self.grid_params['y_range']
-
-        return [x, y]
 
     def generate_test_task(self) -> List[float]:
         """
@@ -506,7 +431,7 @@ class RobotPlanningTester:
         print(f"Running test suite with {num_tests} tests...")
 
         for i in range(num_tests):
-            test_result = self.run_test()
+            test_result = self.run_test(i)
             print(f"Test {test_result.test_id}: "
                   f"Planning: {'Success' if test_result.planning_success else 'Fail'}, "
                   f"Execution: {'Success' if test_result.execution_success else 'Fail'}, "

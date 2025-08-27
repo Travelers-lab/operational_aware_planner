@@ -1,6 +1,5 @@
 import numpy as np
 from typing import Dict, List, Tuple, Any, Optional
-from dataclasses import dataclass
 from scipy import spatial, ndimage
 from sklearn.cluster import DBSCAN
 import matplotlib.pyplot as plt
@@ -527,7 +526,7 @@ if __name__ == "__main__":
     )
 
     # Initialize object recognition manager
-    manager = ObjectRecognitionDataManager(config)
+    manager = ObjectRecognitionAndStorage(config)
 
     # Example grid map (binary occupancy)
     grid_map = np.zeros((100, 100))

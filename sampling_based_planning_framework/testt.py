@@ -1,0 +1,1 @@
+from sampling_based_interactive_planner.motion_planning_pipeline import MotionPlanningPipeline

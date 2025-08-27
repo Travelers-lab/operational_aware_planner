@@ -1,8 +1,8 @@
-from os.path import dirname, join, abspath
 import numpy as np
 import pybullet_data
 import random
 import math
+from os.path import dirname, join, abspath
 
 class Robot:
     def __init__(self, bullet_client, path, clint_id):
@@ -11,7 +11,7 @@ class Robot:
         self.bullet_client.setAdditionalSearchPath(pybullet_data.getDataPath())
 
         flags = self.bullet_client.URDF_ENABLE_CACHED_GRAPHICS_SHAPES
-        self.robot = self.bullet_client.loadURDF(fileName=path,
+        self.robot = self.bullet_client.loadURDF(fileName=join(self.description_file, path),
                                                 basePosition=np.array([0.0, 0.0, 0.0]),
                                                 baseOrientation=[0, 0, 0, 1], flags=flags,
                                                 useFixedBase=1, physicsClientId=clint_id)

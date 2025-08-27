@@ -1,9 +1,10 @@
 import numpy as np
-from typing import Dict, List, Any, Optional, Union, Tuple
+from typing import Dict, List, Any, Optional, Union
 from multi_modal_sensing import TactileDataManager
 from memory_pool import ObjectRecognitionAndStorage
 from interactive_characteristics_inference import MechanicalPropertyInferrer
 from point_clond_extraction import PointCloudExtractor
+
 
 
 class MultiModalTactilePerceptionPipeline:

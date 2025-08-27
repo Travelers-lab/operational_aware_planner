@@ -1,12 +1,10 @@
 motion_planning_config:
   map_generation_config:
-    model_checkpoint_path: "/path/to/checkpoint.pth"
-    model_config_path: "/path/to/model_config.yaml"
+    model_checkpoint_path: "sampling_based_planning_framework/checkpoints/best_model.pth"
+    model_config_path: "/sampling_based_planning_framework/config/prediction_config.yaml"
     device: "cuda:0"
   perception_config:
-    work_space:
-      - [0.30, 0.05]
-      - [0.85, 0.6]
+    workspace_bounds: [[0.30, 0.05], [0.85, 0.6]]
     grid_resolution: 100
     contact_threshold: 0.005
     min_object_points: 10
@@ -14,3 +12,7 @@ motion_planning_config:
     operation_limits: {}
   simulation_test_config:
     results_dir: "/assets/"
+    num_tests: 100
+    robot_urdf_path: "single_arm/left_arm.urdf"
+    obstacle_count: 3
+    min_obstacle_distance: 0.1

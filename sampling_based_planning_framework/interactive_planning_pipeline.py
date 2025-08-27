@@ -1,9 +1,10 @@
 
 import numpy as np
 from typing import Dict, List, Tuple, Any, Optional, Union
-from multi_dimension_perception.environmental_sensing_pipeline import MultiModalTactilePerceptionPipeline
+
 from sampling_based_interactive_planner.motion_planning_pipeline import MotionPlanningPipeline
 from model.operational_aware_map_pipeline import MapGenerationPipeline
+from multi_dimension_perception.environmental_sensing_pipeline import MultiModalTactilePerceptionPipeline
 
 
 
@@ -21,12 +22,7 @@ class IntegratedMotionPlanningPipeline:
                  config,
                  sensor_transform_matrix: Optional[np.ndarray] = None,
                  robots: Optional[Union[str, List[str]]] = None,
-                 objectsId: Optional[Union[int, List[int]]] = None,
-                 model_checkpoint_path: str = None,
-                 operation_limits: List[float] = [400, 400, 20],
-                 model_config_path: Optional[str] = None,
-                 device: Optional[str] = None,
-                 ):
+                 objectsId: Optional[Union[int, List[int]]] = None):
         """
         Initialize the integrated motion planning pipeline.
 
@@ -34,10 +30,6 @@ class IntegratedMotionPlanningPipeline:
             sensor_transform_matrix: Transformation matrix for sensor calibration
             robots: Robot identifiers
             objectsId: Object identifiers to track
-            model_checkpoint_path: Path to the model checkpoint for map generation
-            operation_limits: Operation limits for material properties
-            model_config_path: Path to model configuration file
-            device: Device to run the model on (e.g., 'cuda', 'cpu')
         """
         # Initialize sub-pipeline
         self.perception_pipeline = MultiModalTactilePerceptionPipeline(config.perception_config)

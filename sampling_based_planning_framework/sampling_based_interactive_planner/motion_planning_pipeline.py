@@ -54,7 +54,7 @@ class MotionPlanningPipeline:
 
     def recognize_motion_intent(self,
                                 objects_dict: Dict[str, Dict[str, Any]],
-                                motion_target: np.ndarray) -> np.ndarray:
+                                motion_target: List[float]) -> np.ndarray:
         """
         Recognize motion intent and compute the target point.
 
@@ -119,8 +119,8 @@ class MotionPlanningPipeline:
         Returns:
             Dictionary containing all planning results and metrics
         """
-        self.last_start_position = motion_mission.get('start_position', np.array([]))
-        motion_target = motion_mission.get('target_position', np.array([]))
+        self.last_start_position = motion_mission.get('start_position', [])
+        motion_target = motion_mission.get('target_position', [])
         results = {}
 
         # Step 1: Motion Intent Recognition
@@ -143,11 +143,12 @@ class MotionPlanningPipeline:
             results['overall_success'] = False
             return results
 
-        motion_mission['start_position'] = map_to_grid.world_to_grid(motion_mission['start_position'], to_grid=True)
-        motion_mission['target_position'] = map_to_grid.world_to_grid(motion_mission['target_position'], to_grid=True)
+        motion_mission['start_position'] = map_to_grid.world_to_grid(motion_mission['start_position'])
+        motion_mission['target_position'] = map_to_grid.world_to_grid(motion_mission['target_position'])
 
         # Step 2: Path Planning with RRT-Connect
         start_time_planning = time.time()
+        print(f"motion_mission:{motion_mission}")
         try:
             planning_result = self.plan_path(cost_map=cost_map, motion_mission=motion_mission)
             planning_time = time.time() - start_time_planning

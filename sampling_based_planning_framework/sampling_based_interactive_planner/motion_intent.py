@@ -18,7 +18,7 @@ class MotionIntentRecognizer:
 
     def get_target_point(self,
                          objects_dict: Dict[str, Dict[str, Any]],
-                         motion_target: np.ndarray) -> np.ndarray:
+                         motion_target: List[float]) -> List[float]:
         """
         Determine the target point based on object contact status and properties.
 
@@ -38,8 +38,9 @@ class MotionIntentRecognizer:
             Target point for the planner as 1x2 numpy array
         """
         # Validate input
-        if not isinstance(motion_target, np.ndarray) or motion_target.shape != (2,):
-            raise ValueError("motion_target must be a 1x2 numpy array")
+        print(motion_target, type(motion_target))
+        if not isinstance(motion_target, list) or len(motion_target) != 2:
+            raise ValueError("motion_target must be a 1x2 list")
 
         if not objects_dict:
             print("No objects provided, returning original motion target")
@@ -101,7 +102,7 @@ class MotionIntentRecognizer:
 
         return True
 
-    def _extract_center_from_contour(self, contour_equation: Dict[str, Any]) -> Optional[np.ndarray]:
+    def _extract_center_from_contour(self, contour_equation: Dict[str, Any]) -> Optional[List[float]]:
         """
         Extract center point from contour equation based on shape type.
 
@@ -124,12 +125,12 @@ class MotionIntentRecognizer:
             if shape_type == 'square':
                 center = contour_equation.get('center')
                 if center and len(center) == 2:
-                    return np.array(center, dtype=float)
+                    return center
 
             elif shape_type == 'circle':
                 center = contour_equation.get('center')
                 if center and len(center) == 2:
-                    return np.array(center, dtype=float)
+                    return center
 
             elif shape_type == 'triangle':
                 vertices = contour_equation.get('vertices')
@@ -144,7 +145,7 @@ class MotionIntentRecognizer:
             elif 'center' in contour_equation:
                 center = contour_equation['center']
                 if isinstance(center, (list, np.ndarray)) and len(center) == 2:
-                    return np.array(center, dtype=float)
+                    return center
 
             print(f"Unsupported or incomplete contour equation for shape: {shape_type}")
             return None

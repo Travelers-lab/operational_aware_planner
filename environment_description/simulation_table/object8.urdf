@@ -54,14 +54,14 @@
         <visual>
             <origin  xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename = "meshes/cylinder.dae"/>
+                <mesh filename = "meshes/triangle.stl"/>
             </geometry >
             <material name ="Yellow"/>
         </visual>
         <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename ="meshes/cylinder.dae"/>
+                <mesh filename ="meshes/triangle.stl"/>
             </geometry>
         </collision>
         <inertial>

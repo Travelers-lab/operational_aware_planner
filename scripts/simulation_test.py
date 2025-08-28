@@ -213,7 +213,7 @@ class RobotPlanningTester:
             Motion mission dictionary
         """
         robot_state = self.get_robot_state()
-        current_pos = robot_state["pos"][:2]  # Use only x, y coordinates
+        current_pos = list(robot_state["pos"][:2])  # Use only x, y coordinates
 
         motion_mission = {
             'start_position': current_pos,

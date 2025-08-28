@@ -156,7 +156,7 @@ class IntegratedMotionPlanningPipeline:
 
         # Trajectory Optimization
 
-        print(self.planning_results)
+        print(self.planning_results, motion_mission)
         planned_trajectory = [self.perception_pipeline.object_manager.coordinate_transform(grid, to_grid=False)
                               for grid in self.planning_results['path_planning']['path']]
         optimized_path = self.motion_planning_pipeline.optimize_trajectory(planned_trajectory)

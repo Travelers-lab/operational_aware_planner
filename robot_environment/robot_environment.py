@@ -48,7 +48,7 @@ class Robot:
         # self.kinematics = RobotKinematics(DH_param)
         # self.impedance_controller = CartesianImpedanceControl(kp=[10, 10], kd=[3,3])
 
-        rp = np.array([-1.5708, 2.5, 0, 0, 0, 0.0, 0., 0.0, 0, 0, 0, 0, 0, 0])
+        rp = np.array([1.5708, 2.5, 0, 0, 0, 0.0, 0., 0.0, 0, 0, 0, 0, 0, 0])
         # rp = np.array([-3.14159, -1.5707, 1.5708, 0, 0, 3.14159, 0, 0.0, 0, 0, 0, 0, 0, 0])
         for joint_index in range(len(self.available_joint_indexes)):
             self.bullet_client.resetJointState(self.robot, self.available_joint_indexes[joint_index],
@@ -134,7 +134,7 @@ class Robot:
 
         for i in range(len(coordinate)):
             fixed_base = 1 if random.random() < fix_prob else 0
-            self.object.append(self.bullet_client.loadURDF(fileName=join(self.description_file, f'simulation_table/cylinder{i%6}.urdf'),
+            self.object.append(self.bullet_client.loadURDF(fileName=join(self.description_file, f'simulation_table/object{random.randint(0, 8)}.urdf'),
                                     basePosition=np.array([coordinate[i][0], coordinate[i][1], 1.01]),
                                     baseOrientation=[0, 0, 0, 1],
                                     flags=self.bullet_client.URDF_ENABLE_CACHED_GRAPHICS_SHAPES,

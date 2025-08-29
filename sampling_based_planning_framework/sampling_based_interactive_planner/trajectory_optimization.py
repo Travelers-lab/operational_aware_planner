@@ -58,9 +58,9 @@ class SamplingPointOptimizer:
             raise ValueError(f"At least {self.min_points_for_interpolation} points are required for interpolation")
 
         # Check all points have the same dimension
-        dimensions = [point.shape[0] for point in sampled_points]
-        if len(set(dimensions)) > 1:
-            raise ValueError("All sampled points must have the same dimension")
+        # dimensions = [point.shape[0] for point in sampled_points]
+        # if len(set(dimensions)) > 1:
+        #     raise ValueError("All sampled points must have the same dimension")
 
         # Check if points are distinct
         for i in range(len(sampled_points) - 1):

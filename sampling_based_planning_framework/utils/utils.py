@@ -58,7 +58,7 @@ class CoordinateConverter:
             raise ValueError("Resolution must be a positive number")
 
         self.workspace_bounds = np.array(workspace_bounds, dtype=float)
-        self.resolution = float(resolution)
+        self.resolution = float((workspace_bounds[1][0] - workspace_bounds[0][0])/resolution)
 
         # Calculate grid dimensions
         workspace_size = self.workspace_bounds[1] - self.workspace_bounds[0]
@@ -159,3 +159,13 @@ class CoordinateConverter:
     def get_workspace_bounds(self) -> np.ndarray:
         """Return the workspace boundaries."""
         return self.workspace_bounds.copy()
+
+if __name__ == "__main__":
+    bounds = [[0.30, 0.05], [0.85, 0.6]]
+    resolution = 100
+
+    transform = CoordinateConverter(bounds, resolution)
+    position = [0.55, 0.4]
+
+    grid = transform.world_to_grid_discrete(position)
+    print(grid)

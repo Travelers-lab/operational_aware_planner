@@ -48,7 +48,7 @@ class Robot:
         # self.kinematics = RobotKinematics(DH_param)
         # self.impedance_controller = CartesianImpedanceControl(kp=[10, 10], kd=[3,3])
 
-        rp = np.array([1.5708, 2.5, 0, 0, 0, 0.0, 0., 0.0, 0, 0, 0, 0, 0, 0])
+        rp = np.array([-1.5708, 2.3707, 0, 0, 0, 0.0, 0., 0.0, 0, 0, 0, 0, 0, 0])
         # rp = np.array([-3.14159, -1.5707, 1.5708, 0, 0, 3.14159, 0, 0.0, 0, 0, 0, 0, 0, 0])
         for joint_index in range(len(self.available_joint_indexes)):
             self.bullet_client.resetJointState(self.robot, self.available_joint_indexes[joint_index],

@@ -143,12 +143,12 @@ class MotionPlanningPipeline:
             results['overall_success'] = False
             return results
 
-        motion_mission['start_position'] = map_to_grid.world_to_grid(motion_mission['start_position'])
-        motion_mission['target_position'] = map_to_grid.world_to_grid(motion_mission['target_position'])
+        motion_mission['start_position'] = map_to_grid.world_to_grid_discrete(motion_mission['start_position'])
+        motion_mission['target_position'] = map_to_grid.world_to_grid_discrete(motion_mission['target_position'])
 
         # Step 2: Path Planning with RRT-Connect
         start_time_planning = time.time()
-        print(f"motion_mission:{motion_mission}")
+
         try:
             planning_result = self.plan_path(cost_map=cost_map, motion_mission=motion_mission)
             planning_time = time.time() - start_time_planning
@@ -195,18 +195,18 @@ class MotionPlanningPipeline:
         #     return results
 
         # Calculate quality metrics for the optimized path
-        try:
-            quality_metrics = self.trajectory_optimizer.calculate_path_quality(optimized_path)
-            results['quality_metrics'] = quality_metrics
-        except Exception as e:
-            results['quality_metrics'] = {'error': str(e)}
+        # try:
+        #     quality_metrics = self.trajectory_optimizer.calculate_path_quality(optimized_path)
+        #     results['quality_metrics'] = quality_metrics
+        # except Exception as e:
+        #     results['quality_metrics'] = {'error': str(e)}
 
         # Overall results
         total_time = intent_time + planning_time
         results['overall_success'] = True
         results['total_computation_time'] = total_time
-        results['start_position'] = start_position
-        results['target_position'] = motion_mission['target_position']
+        results['start_position'] = self.last_start_position
+        results['target_position'] = self.last_target_point
 
         self.planning_results = results
         return results

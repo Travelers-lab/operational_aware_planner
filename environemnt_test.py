@@ -12,8 +12,10 @@ def load_env():
     p.setGravity(0, 0, -9.8, physicsClientId=client1)
     p.setTimeStep(time_step)
     robot = Robot(p, join(dirname(abspath(__file__)), "environment_description/single_arm/left_arm.urdf"), client1)
-    robot.load_environment([[0.5, 0.3], [0.55, 0.35], [0.65, 0.45]], fix_prob=0.2)
+    robot.load_environment([[0.6, 0.2], [0.65, 0.3], [0.7, 0.45]], fix_prob=0.)
     while True:
+        agent_states = robot.get_effector_states()
+        print(agent_states)
         p.stepSimulation()
         time.sleep(time_step)
 

@@ -95,9 +95,11 @@ class RobotPlanningTester:
                 execution_success, execution_time = self.execute_planned_motion(
                     planning_results['planned_path']
                 )
+        p.disconnect(self.client1)
         test_result = {"test_id":test_id,
                        " planning_success": execution_success}
         self.test_results.append(test_result)
+
         return test_result
 
 
@@ -431,10 +433,10 @@ class RobotPlanningTester:
 
         for i in range(num_tests):
             test_result = self.run_test(i)
-            print(f"Test {test_result.test_id}: "
-                  f"Planning: {'Success' if test_result.planning_success else 'Fail'}, "
-                  f"Execution: {'Success' if test_result.execution_success else 'Fail'}, "
-                  f"Final error: {test_result.final_error:.3f}m")
+            # print(f"Test {test_result['test_id']}: "
+            #       f"Planning: {'Success' if test_result['planning_success'] else 'Fail'}, "
+            #       f"Execution: {'Success' if test_result['execution_success'] else 'Fail'}, "
+            #       f"Final error: {test_result.final_error:.3f}m")
 
         self._generate_summary_report()
 

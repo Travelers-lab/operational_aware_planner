@@ -83,7 +83,7 @@ class MotionPlanningPipeline:
         Returns:
             Dictionary containing planning results
         """
-        planning_result = self.planner.plan_path(
+        planning_result = self.planner.plan(
             cost_map=cost_map,
             motion_mission=motion_mission
         )
@@ -124,23 +124,11 @@ class MotionPlanningPipeline:
         results = {}
 
         # Step 1: Motion Intent Recognition
-        start_time_intent = time.time()
         try:
             motion_mission['target_position'] = self.recognize_motion_intent(objects_dict, motion_target)
-            intent_time = time.time() - start_time_intent
-            results['intent_recognition'] = {
-                'success': True,
-                'target_point': motion_mission['target_position'],
-                'computation_time': intent_time
-            }
         except Exception as e:
-            intent_time = time.time() - start_time_intent
-            results['intent_recognition'] = {
-                'success': False,
-                'error': str(e),
-                'computation_time': intent_time
-            }
-            results['overall_success'] = False
+            print(e)
+            results['success'] = False
             return results
 
         motion_mission['start_position'] = map_to_grid.world_to_grid_discrete(motion_mission['start_position'])
@@ -152,61 +140,18 @@ class MotionPlanningPipeline:
         try:
             planning_result = self.plan_path(cost_map=cost_map, motion_mission=motion_mission)
             planning_time = time.time() - start_time_planning
-            results['path_planning'] = {'success': planning_result['success'],
-                'path': planning_result['path'],
-                'planning_time': planning_result['planning_time'],
-                'iterations': planning_result['iterations'],
-                'computation_time': planning_time
-            }
+            results['path'] = planning_result['path']
+            results['success'] = planning_result['success']
+            results['planning_time'] = planning_time
+
         except Exception as e:
-            planning_time = time.time() - start_time_planning
-            results['path_planning'] = {
-                'success': False,
-                'error': str(e),
-                'computation_time': planning_time
-            }
-            results['overall_success'] = False
+            print(e)
+            results['success'] = False
             return results
 
         if not planning_result['success']:
             results['overall_success'] = False
             return results
-
-        # Step 3: Trajectory Optimization
-        # start_time_optimization = time.time()
-        # try:
-        #     optimized_path = self.optimize_trajectory(planning_result['path'])
-        #     optimization_time = time.time() - start_time_optimization
-        #     results['trajectory_optimization'] = {
-        #         'success': True,
-        #         'optimized_path': optimized_path,
-        #         'original_points': len(planning_result['path']),
-        #         'optimized_points': len(optimized_path),
-        #         'computation_time': optimization_time
-        #     }
-        # except Exception as e:
-        #     optimization_time = time.time() - start_time_optimization
-        #     results['trajectory_optimization'] = {
-        #         'success': False,
-        #         'error': str(e),
-        #         'computation_time': optimization_time
-        #     }
-        #     results['overall_success'] = False
-        #     return results
-
-        # Calculate quality metrics for the optimized path
-        # try:
-        #     quality_metrics = self.trajectory_optimizer.calculate_path_quality(optimized_path)
-        #     results['quality_metrics'] = quality_metrics
-        # except Exception as e:
-        #     results['quality_metrics'] = {'error': str(e)}
-
-        # Overall results
-        total_time = intent_time + planning_time
-        results['overall_success'] = True
-        results['total_computation_time'] = total_time
-        results['start_position'] = self.last_start_position
-        results['target_position'] = self.last_target_point
 
         self.planning_results = results
         return results

@@ -122,13 +122,6 @@ class IntegratedMotionPlanningPipeline:
 
         grid_point_cloud = [self.perception_pipeline.object_manager.coordinate_transform(pose, to_grid=True) for pose in point_cloud]
 
-        # Update objects dictionary and get point cloud
-        # self.objects_dict = perception_results.get('objects_dict', self.objects_dict)
-        # point_cloud = perception_results.get('point_cloud', [])
-        # self.history_point_cloud = perception_results.get('history_point_cloud', [])
-
-        # Step 2: Run map generation pipeline
-        # print("Running map generation pipeline...")
         map_generation_results = self.map_generation_pipeline.generate_operational_cost_map(
             point_cloud_coordinates=grid_point_cloud,
             objects_dict=objects_dict,
@@ -155,11 +148,10 @@ class IntegratedMotionPlanningPipeline:
         )
 
         # Trajectory Optimization
-
-
         planned_trajectory = [np.array(self.perception_pipeline.object_manager.coordinate_transform(grid, to_grid=False))
-                              for grid in self.planning_results['path_planning']['path']]
+                              for grid in self.planning_results['path']]
         print(type(planned_trajectory), motion_mission["target_position"], )
+
         optimized_path = self.motion_planning_pipeline.optimize_trajectory(planned_trajectory)
 
         # Prepare final results
@@ -170,7 +162,6 @@ class IntegratedMotionPlanningPipeline:
             'iterations': self.planning_results.get('iterations', 0)
         }
 
-
         # Add intermediate results if requested
         if return_intermediate:
             results.update({
@@ -179,7 +170,6 @@ class IntegratedMotionPlanningPipeline:
                 'map_generation_results': map_generation_results,
                 'motion_planning_results': self.planning_results
             })
-
         return results
 
     def get_current_state(self) -> Dict[str, Any]:

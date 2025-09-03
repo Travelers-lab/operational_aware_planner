@@ -1,839 +1,464 @@
-# import numpy as np
-# import matplotlib.pyplot as plt
-# import matplotlib.colors as mcolors
-# from matplotlib.patches import Rectangle
-# import math
-# import random
-# from collections import deque
-# import time
-# import matplotlib
-# matplotlib.use('TkAgg')
-#
-# class RRTConnectPlanner:
-#     def __init__(self, cost_map, start, goal):
-#         """
-#         Initialize RRT-Connect path planner
-#
-#         Args:
-#             cost_map (numpy.ndarray): 100x100 operation cost map with values in [0, 1]
-#             start (tuple): Starting point coordinates (x, y)
-#             goal (tuple): Goal point coordinates (x, y)
-#         """
-#         self.cost_map = cost_map
-#         self.map_size = cost_map.shape
-#         self.start = start
-#         self.goal = goal
-#
-#         # Initialize two trees
-#         self.tree_start = {start: None}  # key: node, value: parent node
-#         self.tree_goal = {goal: None}
-#
-#         # Path planning results
-#         self.path = []
-#         self.success = False
-#
-#         # Visualization parameters
-#         self.fig, self.ax = None, None
-#
-#     def is_valid_point(self, point, check_radius=10):
-#         """
-#         Check if a point is valid (not near obstacles and within boundaries)
-#
-#         Args:
-#             point (tuple): Point to check (x, y)
-#             check_radius (int): Check radius
-#
-#         Returns:
-#             bool: Whether the point is valid
-#         """
-#         x, y = point
-#
-#         # Check if out of map boundaries
-#         if x < 0 or x >= self.map_size[0] or y < 0 or y >= self.map_size[1]:
-#             return False
-#
-#         # Check if point is in obstacle (cost = 1)
-#         if self.cost_map[int(x), int(y)] == 1:
-#             return False
-#
-#         # Check surrounding area for obstacles
-#         for dx in range(-check_radius, check_radius + 1):
-#             for dy in range(-check_radius, check_radius + 1):
-#                 nx, ny = int(x + dx), int(y + dy)
-#                 # Check if within map boundaries
-#                 if 0 <= nx < self.map_size[0] and 0 <= ny < self.map_size[1]:
-#                     # Check if obstacle
-#                     if self.cost_map[nx, ny] == 1:
-#                         return False
-#
-#         return True
-#
-#     def is_valid_path(self, point1, point2, step_size=1, check_radius=10):
-#         """
-#         Check if the path between two points is valid
-#
-#         Args:
-#             point1 (tuple): First point (x, y)
-#             point2 (tuple): Second point (x, y)
-#             step_size (int): Step size for interpolation
-#             check_radius (int): Check radius
-#
-#         Returns:
-#             bool: Whether the path is valid
-#         """
-#         x1, y1 = point1
-#         x2, y2 = point2
-#
-#         # Calculate distance and direction
-#         distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-#         if distance == 0:
-#             return True
-#
-#         # Normalize direction vector
-#         dx = (x2 - x1) / distance
-#         dy = (y2 - y1) / distance
-#
-#         # Check intermediate points
-#         num_steps = int(distance / step_size) + 1
-#         for i in range(num_steps + 1):
-#             # Calculate intermediate point
-#             t = min(i * step_size / distance, 1.0)
-#             x = x1 + t * (x2 - x1)
-#             y = y1 + t * (y2 - y1)
-#
-#             # Check if intermediate point is valid
-#             if not self.is_valid_point((x, y), check_radius):
-#                 return False
-#
-#         return True
-#
-#     def get_nearest_node(self, tree, point):
-#         """
-#         Find the nearest node in the tree to the given point
-#
-#         Args:
-#             tree (dict): Tree to search
-#             point (tuple): Target point (x, y)
-#
-#         Returns:
-#             tuple: Nearest node coordinates
-#         """
-#         min_dist = float('inf')
-#         nearest_node = None
-#
-#         for node in tree.keys():
-#             dist = math.sqrt((node[0] - point[0]) ** 2 + (node[1] - point[1]) ** 2)
-#             if dist < min_dist:
-#                 min_dist = dist
-#                 nearest_node = node
-#
-#         return nearest_node
-#
-#     def extend_tree(self, tree, target_point, step_size=2, max_attempts=50):
-#         """
-#         Extend tree towards target point
-#
-#         Args:
-#             tree (dict): Tree to extend
-#             target_point (tuple): Target point to extend towards
-#             step_size (int): Step size for extension
-#             max_attempts (int): Maximum number of extension attempts
-#
-#         Returns:
-#             tuple: New node if successful, None otherwise
-#         """
-#         nearest_node = self.get_nearest_node(tree, target_point)
-#
-#         # Calculate direction vector
-#         dx = target_point[0] - nearest_node[0]
-#         dy = target_point[1] - nearest_node[1]
-#         distance = math.sqrt(dx ** 2 + dy ** 2)
-#
-#         if distance == 0:
-#             return None
-#
-#         # Normalize direction
-#         dx /= distance
-#         dy /= distance
-#
-#         # Calculate new point
-#         new_point = (
-#             nearest_node[0] + dx * min(step_size, distance),
-#             nearest_node[1] + dy * min(step_size, distance)
-#         )
-#
-#         # Check if path is valid
-#         if self.is_valid_path(nearest_node, new_point):
-#             tree[new_point] = nearest_node
-#             return new_point
-#
-#         return None
-#
-#     def connect_trees(self, step_size=2):
-#         """
-#         Connect the two trees using RRT-Connect algorithm
-#
-#         Args:
-#             step_size (int): Step size for tree extension
-#
-#         Returns:
-#             tuple: Connection point if successful, None otherwise
-#         """
-#         for _ in range(1000):  # Maximum iterations
-#             # Generate random point
-#             if random.random() < 0.1:  # 10% chance to sample goal
-#                 rand_point = self.goal
-#             else:
-#                 rand_point = (random.uniform(0, self.map_size[0]),
-#                               random.uniform(0, self.map_size[1]))
-#
-#             # Extend start tree towards random point
-#             new_start_node = self.extend_tree(self.tree_start, rand_point, step_size)
-#
-#             if new_start_node:
-#                 # Try to extend goal tree towards new start node
-#                 new_goal_node = self.extend_tree(self.tree_goal, new_start_node, step_size)
-#
-#                 # Check if trees are connected
-#                 if new_goal_node and math.sqrt(
-#                         (new_start_node[0] - new_goal_node[0]) ** 2 +
-#                         (new_start_node[1] - new_goal_node[1]) ** 2
-#                 ) < step_size * 1.5:
-#                     return new_start_node, new_goal_node
-#
-#         return None, None
-#
-#     def calculate_path_cost(self, path):
-#         """
-#         Calculate the total cost of a path
-#
-#         Args:
-#             path (list): List of path points
-#
-#         Returns:
-#             float: Total path cost
-#         """
-#         total_cost = 0
-#
-#         for i in range(len(path) - 1):
-#             point1 = path[i]
-#             point2 = path[i + 1]
-#
-#             # Distance cost
-#             distance = math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
-#
-#             # Operation cost (average cost along the segment)
-#             mid_x = int((point1[0] + point2[0]) / 2)
-#             mid_y = int((point1[1] + point2[1]) / 2)
-#             if 0 <= mid_x < self.map_size[0] and 0 <= mid_y < self.map_size[1]:
-#                 op_cost = self.cost_map[mid_x, mid_y]
-#             else:
-#                 op_cost = 1.0  # Maximum cost if out of bounds
-#
-#             # Weighted sum (adjust weights as needed)
-#             segment_cost = distance * 0.7 + op_cost * 0.3
-#             total_cost += segment_cost
-#
-#         return total_cost
-#
-#     def extract_path(self, connection_point_start, connection_point_goal):
-#         """
-#         Extract complete path from start to goal
-#
-#         Args:
-#             connection_point_start (tuple): Connection point in start tree
-#             connection_point_goal (tuple): Connection point in goal tree
-#
-#         Returns:
-#             list: Complete path from start to goal
-#         """
-#         # Extract path from start to connection point
-#         path_from_start = []
-#         node = connection_point_start
-#         while node is not None:
-#             path_from_start.append(node)
-#             node = self.tree_start[node]
-#         path_from_start.reverse()
-#
-#         # Extract path from connection point to goal
-#         path_from_goal = []
-#         node = connection_point_goal
-#         while node is not None:
-#             path_from_goal.append(node)
-#             node = self.tree_goal[node]
-#
-#         # Combine paths
-#         full_path = path_from_start + path_from_goal
-#         return full_path
-#
-#     def plan_path(self, max_iterations=1000, step_size=2):
-#         """
-#         Plan path using RRT-Connect algorithm
-#
-#         Args:
-#             max_iterations (int): Maximum number of iterations
-#             step_size (int): Step size for tree extension
-#
-#         Returns:
-#             dict: Dictionary containing success status and path
-#         """
-#         start_time = time.time()
-#
-#         for iteration in range(max_iterations):
-#             # Try to connect trees
-#             connection_start, connection_goal = self.connect_trees(step_size)
-#
-#             if connection_start and connection_goal:
-#                 # Extract complete path
-#                 self.path = self.extract_path(connection_start, connection_goal)
-#                 self.success = True
-#                 break
-#
-#         # If no path found, return best effort path
-#         if not self.success:
-#             # Find closest points between trees
-#             min_dist = float('inf')
-#             best_start, best_goal = None, None
-#
-#             for start_node in self.tree_start.keys():
-#                 for goal_node in self.tree_goal.keys():
-#                     dist = math.sqrt((start_node[0] - goal_node[0]) ** 2 +
-#                                      (start_node[1] - goal_node[1]) ** 2)
-#                     if dist < min_dist and self.is_valid_path(start_node, goal_node):
-#                         min_dist = dist
-#                         best_start, best_goal = start_node, goal_node
-#
-#             if best_start and best_goal:
-#                 self.path = self.extract_path(best_start, best_goal)
-#
-#         planning_time = time.time() - start_time
-#
-#         return {
-#             'success': self.success,
-#             'path': self.path,
-#             'planning_time': planning_time,
-#             'iterations': iteration + 1 if self.success else max_iterations
-#         }
-#
-#     def visualize(self, show_path=True, show_trees=False):
-#         """
-#         Visualize the map and planned path
-#
-#         Args:
-#             show_path (bool): Whether to show the planned path
-#             show_trees (bool): Whether to show the search trees
-#         """
-#         if self.fig is None:
-#             self.fig, self.ax = plt.subplots(figsize=(10, 10))
-#
-#         self.ax.clear()
-#
-#         # Display cost map with colormap
-#         im = self.ax.imshow(self.cost_map.T, origin='lower',
-#                             cmap='viridis', alpha=0.7,
-#                             extent=[0, self.map_size[0], 0, self.map_size[1]])
-#
-#         # Add colorbar
-#         cbar = self.fig.colorbar(im, ax=self.ax, shrink=0.8)
-#         cbar.set_label('Operation Cost')
-#
-#         # Mark start and goal points
-#         self.ax.plot(self.start[0], self.start[1], 'go', markersize=10, label='Start')
-#         self.ax.plot(self.goal[0], self.goal[1], 'ro', markersize=10, label='Goal')
-#
-#         if show_trees:
-#             # Draw start tree
-#             for node, parent in self.tree_start.items():
-#                 if parent:
-#                     self.ax.plot([parent[0], node[0]], [parent[1], node[1]], 'b-', alpha=0.3)
-#
-#             # Draw goal tree
-#             for node, parent in self.tree_goal.items():
-#                 if parent:
-#                     self.ax.plot([parent[0], node[0]], [parent[1], node[1]], 'r-', alpha=0.3)
-#
-#         if show_path and self.path:
-#             # Draw planned path
-#             path_x = [p[0] for p in self.path]
-#             path_y = [p[1] for p in self.path]
-#             self.ax.plot(path_x, path_y, 'y-', linewidth=3, label='Planned Path')
-#             self.ax.plot(path_x, path_y, 'yo', markersize=4, alpha=0.7)
-#
-#         self.ax.set_xlim(0, self.map_size[0])
-#         self.ax.set_ylim(0, self.map_size[1])
-#         self.ax.set_xlabel('X Coordinate')
-#         self.ax.set_ylabel('Y Coordinate')
-#         self.ax.set_title('RRT-Connect Path Planning')
-#         self.ax.legend()
-#         self.ax.grid(True, alpha=0.3)
-#
-#         plt.tight_layout()
-#         plt.show()
-#
-#
-# # Example usage
-# if __name__ == "__main__":
-#     # Create a sample cost map
-#     cost_map = np.zeros((100, 100))
-#
-#     # Add some obstacles (cost = 1)
-#     cost_map[20:40, 30:50] = 1  # Square obstacle
-#     cost_map[60:80, 20:40] = 1  # Another square
-#     cost_map[40:60, 70:90] = 1  # Third obstacle
-#
-#     # Add some high-cost areas (0.5-0.9)
-#     cost_map[10:20, 10:20] = 0.7
-#     cost_map[80:90, 80:90] = 0.5
-#
-#     # Define start and goal points
-#     start_point = (10, 10)
-#     goal_point = (90, 90)
-#
-#     # Create planner and plan path
-#     planner = RRTConnectPlanner(cost_map, start_point, goal_point)
-#     result = planner.plan_path(max_iterations=500, step_size=2)
-#
-#     # Print results
-#     print(f"Planning successful: {result['success']}")
-#     print(f"Planning time: {result['planning_time']:.3f} seconds")
-#     print(f"Path length: {len(result['path'])} points")
-#     print(f"Path cost: {planner.calculate_path_cost(result['path']):.3f}")
-#
-#     # Visualize results
-#     planner.visualize(show_path=True, show_trees=True)
 
 import numpy as np
-import math
-import random
-import time
 import matplotlib.pyplot as plt
-from typing import Dict, List, Tuple, Optional, Any
+from typing import List, Tuple, Dict, Optional, Any
 
 
 class RRTConnectPlanner:
-    def __init__(self):
-        """
-        Initialize RRT-Connect path planner
-        """
-        # Initialize two trees
-        self.tree_start = {}
-        self.tree_goal = {}
+    """
+    RRT-Connect path planner for grid-based environments.
 
-        # Path planning results
-        self.path = []
-        self.success = False
-        self.cost_map = None
-        self.map_size = None
-        self.start = None
-        self.goal = None
+    This class implements the RRT-Connect algorithm for path planning on a 2D grid map.
+    It supports configurable planning parameters, robust input validation, modular design,
+    and optional visualization.
 
-        # Visualization parameters
-        self.fig, self.ax = None, None
+    Attributes:
+        step_size (int): Expansion step size in grid units.
+        max_attempts (int): Maximum number of sampling attempts.
+        radius (int): Collision checking radius around sample points.
+        length_weight (float): Weight for path length in cost calculation.
+        cost_weight (float): Weight for operational cost in cost calculation.
+        random_seed (Optional[int]): Seed for reproducible sampling.
+    """
 
-    def _initialize_planner(self, cost_map: np.ndarray, motion_mission: Dict[str, Any]):
+    def __init__(
+        self,
+        step_size: int = 2,
+        max_attempts: int = 5000,
+        radius: int = 10,
+        length_weight: float = 1.0,
+        cost_weight: float = 1.0,
+        random_seed: Optional[int] = None
+    ) -> None:
         """
-        Initialize planner with cost map and mission parameters
+        Initialize planner parameters.
 
         Args:
-            cost_map: 100x100 operation cost map with values in [0, 1]
-            motion_mission: Dictionary containing mission parameters:
-                - start_position: [x, y] starting coordinates
-                - target_position: [x, y] goal coordinates
+            step_size: Expansion step size in grid units.
+            max_attempts: Maximum number of sampling attempts.
+            radius: Collision checking radius.
+            length_weight: Weight for path length.
+            cost_weight: Weight for operational cost.
+            random_seed: Optional random seed for reproducibility.
         """
-        self.cost_map = cost_map
-        self.map_size = cost_map.shape
-        self.start = tuple(motion_mission['start_position'])
-        self.goal = tuple(motion_mission['target_position'])
+        self.step_size = step_size
+        self.max_attempts = max_attempts
+        self.radius = radius
+        self.length_weight = length_weight
+        self.cost_weight = cost_weight
+        self.random_seed = random_seed
+        if random_seed is not None:
+            np.random.seed(random_seed)
 
-        # Reset trees and results
-        self.tree_start = {self.start: None}
-        self.tree_goal = {self.goal: None}
-        self.path = []
-        self.success = False
+        # Internal state for visualization
+        self._sampled_points: List[Tuple[int, int]] = []
+        self._edges: List[Tuple[Tuple[int, int], Tuple[int, int]]] = []
+        self._cost_map: Optional[np.ndarray] = None
 
-    def is_valid_point(self, point: Tuple[float, float], check_radius: int = 3) -> bool:
+    def plan(
+        self,
+        cost_map: np.ndarray,
+        motion_mission: Dict[str, List[int]],
+        visualize: bool = False
+    ) -> Dict[str, Any]:
         """
-        Check if a point is valid (not near obstacles and within boundaries)
+        Plan a path using RRT-Connect algorithm.
 
         Args:
-            point: Point to check (x, y)
-            check_radius: Check radius
+            cost_map: 128x128 numpy array, values in [0, 1], 1=obstacle.
+            motion_mission: Dict with 'start_position' and 'target_position' as [x, y].
+            visualize: If True, generates visualization data.
 
         Returns:
-            Whether the point is valid
+            Dict with keys:
+                'success': True if path found, else False.
+                'path': List of waypoints [(x, y), ...].
+                If visualize=True, also:
+                    'sampled_points': List of sampled points.
+                    'edges': List of edges as ((x1, y1), (x2, y2)).
+        Raises:
+            ValueError: On invalid inputs.
+            RuntimeError: On planning failure.
+        """
+        # Input validation
+        self._validate_inputs(cost_map, motion_mission, visualize)
+        self._cost_map = cost_map
+        start = tuple(motion_mission["start_position"])
+        goal = tuple(motion_mission["target_position"])
+        obstacle_mask = (cost_map == 1)
+
+        # Trees: node -> parent
+        tree_start: Dict[Tuple[int, int], Optional[Tuple[int, int]]] = {start: None}
+        tree_goal: Dict[Tuple[int, int], Optional[Tuple[int, int]]] = {goal: None}
+        nodes_start: List[Tuple[int, int]] = [start]
+        nodes_goal: List[Tuple[int, int]] = [goal]
+
+        self._sampled_points = []
+        self._edges = []
+
+        success = False
+        path: List[Tuple[int, int]] = []
+
+        try:
+            for attempt in range(self.max_attempts):
+                # Uniformly sample a random point
+                rand_point = (
+                    int(np.random.randint(0, cost_map.shape[0])),
+                    int(np.random.randint(0, cost_map.shape[1]))
+                )
+                self._sampled_points.append(rand_point)
+
+                # Extend start tree towards sampled point
+                nearest_start = self._nearest_node(rand_point, nodes_start)
+                new_start = self._steer(nearest_start, rand_point)
+                if self._is_valid_sample(new_start, obstacle_mask, cost_map.shape):
+                    if self._check_line_segment(nearest_start, new_start, obstacle_mask, cost_map.shape):
+                        tree_start[new_start] = nearest_start
+                        nodes_start.append(new_start)
+                        self._edges.append((nearest_start, new_start))
+
+                        # Try to connect goal tree to new_start
+                        nearest_goal = self._nearest_node(new_start, nodes_goal)
+                        new_goal = self._steer(nearest_goal, new_start)
+                        if self._is_valid_sample(new_goal, obstacle_mask, cost_map.shape):
+                            if self._check_line_segment(nearest_goal, new_goal, obstacle_mask, cost_map.shape):
+                                tree_goal[new_goal] = nearest_goal
+                                nodes_goal.append(new_goal)
+                                self._edges.append((nearest_goal, new_goal))
+
+                                # Check if trees are connected
+                                if self._is_connected(new_start, new_goal, obstacle_mask, cost_map.shape):
+                                    path = self._reconstruct_path(tree_start, tree_goal, new_start, new_goal)
+                                    success = True
+                                    break
+
+                # Swap trees for bidirectional growth
+                tree_start, tree_goal = tree_goal, tree_start
+                nodes_start, nodes_goal = nodes_goal, nodes_start
+
+            if not success:
+                # No connection found, return best partial path
+                best_cost = float('inf')
+                best_path: List[Tuple[int, int]] = []
+                for node in nodes_start:
+                    partial_path = self._reconstruct_partial_path(tree_start, node)
+                    cost = self._calculate_path_cost(partial_path)
+                    if cost < best_cost:
+                        best_cost = cost
+                        best_path = partial_path
+                path = best_path
+
+            result: Dict[str, Any] = {
+                "success": success,
+                "path": path
+            }
+            if visualize:
+                result["sampled_points"] = self._sampled_points
+                result["edges"] = self._edges
+                self._visualize_result(cost_map, path, self._sampled_points, self._edges)
+            return result
+
+        except Exception as e:
+            raise RuntimeError(f"Planning failed: {e}")
+
+    def _validate_inputs(
+        self,
+        cost_map: np.ndarray,
+        motion_mission: Dict[str, List[int]],
+        visualize: bool
+    ) -> None:
+        """
+        Validate input arguments.
+
+        Args:
+            cost_map: Grid map.
+            motion_mission: Mission dict.
+            visualize: Visualization flag.
+
+        Raises:
+            ValueError: On invalid inputs.
+        """
+        if not isinstance(cost_map, np.ndarray):
+            raise ValueError("cost_map must be a numpy array.")
+        if cost_map.shape != (128, 128):
+            raise ValueError("cost_map must have shape (128, 128).")
+        if not np.all((0 <= cost_map) & (cost_map <= 1)):
+            raise ValueError("cost_map values must be in [0, 1].")
+        if not isinstance(motion_mission, dict):
+            raise ValueError("motion_mission must be a dictionary.")
+        for key in ["start_position", "target_position"]:
+            if key not in motion_mission:
+                raise ValueError(f"motion_mission missing key: {key}")
+            pos = motion_mission[key]
+            if (not isinstance(pos, (list, tuple)) or len(pos) != 2 or
+                not all(isinstance(x, int) for x in pos)):
+                raise ValueError(f"{key} must be a list of two integers.")
+            if not (0 <= pos[0] < 128 and 0 <= pos[1] < 128):
+                raise ValueError(f"{key} coordinates out of bounds.")
+        if not isinstance(visualize, bool):
+            raise ValueError("visualize must be a boolean.")
+
+    def _is_valid_sample(
+        self,
+        point: Tuple[int, int],
+        obstacle_mask: np.ndarray,
+        map_shape: Tuple[int, int]
+    ) -> bool:
+        """
+        Check if a sample point is valid (collision-free).
+
+        Args:
+            point: (x, y) coordinates.
+            obstacle_mask: Boolean mask of obstacles.
+            map_shape: Shape of the map.
+
+        Returns:
+            True if valid, False otherwise.
         """
         x, y = point
-
-        # Check if out of map boundaries
-        if x < 0 or x >= self.map_size[0] or y < 0 or y >= self.map_size[1]:
+        if not (0 <= x < map_shape[0] and 0 <= y < map_shape[1]):
             return False
-
-        # Check if point is in obstacle (cost = 1)
-        if self.cost_map[int(x), int(y)] == 1:
+        x_min = max(0, x - self.radius)
+        x_max = min(map_shape[0] - 1, x + self.radius)
+        y_min = max(0, y - self.radius)
+        y_max = min(map_shape[1] - 1, y + self.radius)
+        region = obstacle_mask[x_min:x_max + 1, y_min:y_max + 1]
+        if np.any(region):
             return False
-
-        # Check surrounding area for obstacles (only if check_radius > 0)
-        if check_radius > 0:
-            for dx in range(-check_radius, check_radius + 1):
-                for dy in range(-check_radius, check_radius + 1):
-                    nx, ny = int(x + dx), int(y + dy)
-                    # Check if within map boundaries
-                    if 0 <= nx < self.map_size[0] and 0 <= ny < self.map_size[1]:
-                        # Check if obstacle
-                        if self.cost_map[nx, ny] == 1:
-                            return False
-
         return True
 
-    def is_valid_path(self, point1: Tuple[float, float], point2: Tuple[float, float],
-                      step_size: float = 1.0, check_radius: int = 2) -> bool:
+    def _check_line_segment(
+        self,
+        p1: Tuple[int, int],
+        p2: Tuple[int, int],
+        obstacle_mask: np.ndarray,
+        map_shape: Tuple[int, int]
+    ) -> bool:
         """
-        Check if the path between two points is valid
+        Check if the line segment between p1 and p2 is collision-free.
 
         Args:
-            point1: First point (x, y)
-            point2: Second point (x, y)
-            step_size: Step size for interpolation
-            check_radius: Check radius
+            p1: Start point.
+            p2: End point.
+            obstacle_mask: Boolean mask of obstacles.
+            map_shape: Shape of the map.
 
         Returns:
-            Whether the path is valid
+            True if collision-free, False otherwise.
         """
-        x1, y1 = point1
-        x2, y2 = point2
-
-        # Calculate distance and direction
-        distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-        if distance == 0:
-            return True
-
-        # Normalize direction vector
-        dx = (x2 - x1) / distance
-        dy = (y2 - y1) / distance
-
-        # Check intermediate points
-        num_steps = int(distance / step_size) + 1
-        for i in range(num_steps + 1):
-            # Calculate intermediate point
-            t = min(i * step_size / distance, 1.0)
-            x = x1 + t * (x2 - x1)
-            y = y1 + t * (y2 - y1)
-
-            # Check if intermediate point is valid
-            if not self.is_valid_point((x, y), check_radius):
+        line_pts = np.linspace(p1, p2, 11)
+        for pt in line_pts:
+            xi, yi = int(round(pt[0])), int(round(pt[1]))
+            if not (0 <= xi < map_shape[0] and 0 <= yi < map_shape[1]):
                 return False
-
+            if obstacle_mask[xi, yi]:
+                return False
         return True
 
-    def get_nearest_node(self, tree: Dict, point: Tuple[float, float]) -> Tuple[float, float]:
+    def _nearest_node(
+        self,
+        pt: Tuple[int, int],
+        nodes: List[Tuple[int, int]]
+    ) -> Tuple[int, int]:
         """
-        Find the nearest node in the tree to the given point
+        Find the nearest node in nodes to pt.
 
         Args:
-            tree: Tree to search
-            point: Target point (x, y)
+            pt: Query point.
+            nodes: List of nodes.
 
         Returns:
-            Nearest node coordinates
+            Nearest node.
         """
-        min_dist = float('inf')
-        nearest_node = None
+        arr = np.array(nodes)
+        dists = np.linalg.norm(arr - np.array(pt), axis=1)
+        idx = np.argmin(dists)
+        return nodes[idx]
 
-        for node in tree.keys():
-            dist = math.sqrt((node[0] - point[0]) ** 2 + (node[1] - point[1]) ** 2)
-            if dist < min_dist:
-                min_dist = dist
-                nearest_node = node
-
-        return nearest_node
-
-    def extend_tree(self, tree: Dict, target_point: Tuple[float, float],
-                    step_size: float = 2.0, max_attempts: int = 10) -> Optional[Tuple[float, float]]:
+    def _steer(
+        self,
+        from_pt: Tuple[int, int],
+        to_pt: Tuple[int, int]
+    ) -> Tuple[int, int]:
         """
-        Extend tree towards target point
+        Generate a new node toward to_pt from from_pt by step_size.
 
         Args:
-            tree: Tree to extend
-            target_point: Target point to extend towards
-            step_size: Step size for extension
-            max_attempts: Maximum number of extension attempts
+            from_pt: Starting point.
+            to_pt: Target point.
 
         Returns:
-            New node if successful, None otherwise
+            New node coordinates.
         """
-        nearest_node = self.get_nearest_node(tree, target_point)
+        vec = np.array(to_pt) - np.array(from_pt)
+        dist = np.linalg.norm(vec)
+        if dist == 0:
+            return from_pt
+        direction = vec / dist
+        step = min(self.step_size, dist)
+        new_pt = np.array(from_pt) + direction * step
+        new_pt = np.clip(new_pt, 0, 127)
+        return (int(round(new_pt[0])), int(round(new_pt[1])))
 
-        # Calculate direction vector
-        dx = target_point[0] - nearest_node[0]
-        dy = target_point[1] - nearest_node[1]
-        distance = math.sqrt(dx ** 2 + dy ** 2)
-
-        if distance == 0:
-            return None
-
-        # Normalize direction
-        dx /= distance
-        dy /= distance
-
-        # Calculate new point
-        new_point = (
-            nearest_node[0] + dx * min(step_size, distance),
-            nearest_node[1] + dy * min(step_size, distance)
-        )
-
-        # Check if path is valid
-        if self.is_valid_path(nearest_node, new_point):
-            tree[new_point] = nearest_node
-            return new_point
-
-        return None
-
-    def connect_trees(self, step_size: float = 2.0) -> Tuple[
-        Optional[Tuple[float, float]], Optional[Tuple[float, float]]]:
+    def _is_connected(
+        self,
+        pt1: Tuple[int, int],
+        pt2: Tuple[int, int],
+        obstacle_mask: np.ndarray,
+        map_shape: Tuple[int, int]
+    ) -> bool:
         """
-        Connect the two trees using RRT-Connect algorithm
+        Check if two nodes are within step_size and collision-free.
 
         Args:
-            step_size: Step size for tree extension
+            pt1: First node.
+            pt2: Second node.
+            obstacle_mask: Boolean mask of obstacles.
+            map_shape: Shape of the map.
 
         Returns:
-            Connection points if successful, (None, None) otherwise
+            True if connected, False otherwise.
         """
-        for _ in range(100):  # Reduced iterations per connect call
-            # Generate random point with goal bias
-            if random.random() < 0.1:  # 10% chance to sample goal
-                rand_point = self.goal
-            else:
-                rand_point = (random.uniform(0, self.map_size[0]),
-                              random.uniform(0, self.map_size[1]))
+        dist = np.linalg.norm(np.array(pt1) - np.array(pt2))
+        if dist <= self.step_size:
+            if self._check_line_segment(pt1, pt2, obstacle_mask, map_shape):
+                return True
+        return False
 
-            # Extend start tree towards random point
-            new_start_node = self.extend_tree(self.tree_start, rand_point, step_size)
-
-            if new_start_node:
-                # Try to extend goal tree towards new start node
-                new_goal_node = self.extend_tree(self.tree_goal, new_start_node, step_size)
-
-                # Check if trees are connected
-                if new_goal_node and math.sqrt(
-                        (new_start_node[0] - new_goal_node[0]) ** 2 +
-                        (new_start_node[1] - new_goal_node[1]) ** 2
-                ) < step_size * 1.5:
-                    return new_start_node, new_goal_node
-
-        return None, None
-
-    def calculate_path_cost(self, path: List[Tuple[float, float]]) -> float:
+    def _reconstruct_path(
+        self,
+        tree_start: Dict[Tuple[int, int], Optional[Tuple[int, int]]],
+        tree_goal: Dict[Tuple[int, int], Optional[Tuple[int, int]]],
+        connect_start: Tuple[int, int],
+        connect_goal: Tuple[int, int]
+    ) -> List[Tuple[int, int]]:
         """
-        Calculate the total cost of a path
+        Reconstruct full path from start to goal via connection.
 
         Args:
-            path: List of path points
+            tree_start: Start tree.
+            tree_goal: Goal tree.
+            connect_start: Connection node in start tree.
+            connect_goal: Connection node in goal tree.
 
         Returns:
-            Total path cost
+            List of waypoints.
         """
-        total_cost = 0
-
-        for i in range(len(path) - 1):
-            point1 = path[i]
-            point2 = path[i + 1]
-
-            # Distance cost
-            distance = math.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
-
-            # Operation cost (average cost along the segment)
-            mid_x = int((point1[0] + point2[0]) / 2)
-            mid_y = int((point1[1] + point2[1]) / 2)
-            if 0 <= mid_x < self.map_size[0] and 0 <= mid_y < self.map_size[1]:
-                op_cost = self.cost_map[mid_x, mid_y]
-            else:
-                op_cost = 1.0  # Maximum cost if out of bounds
-
-            # Weighted sum (adjust weights as needed)
-            segment_cost = distance * 0.7 + op_cost * 0.3
-            total_cost += segment_cost
-
-        return total_cost
-
-    def extract_path(self, connection_point_start: Tuple[float, float],
-                     connection_point_goal: Tuple[float, float]) -> List[Tuple[float, float]]:
-        """
-        Extract complete path from start to goal
-
-        Args:
-            connection_point_start: Connection point in start tree
-            connection_point_goal: Connection point in goal tree
-
-        Returns:
-            Complete path from start to goal
-        """
-        # Extract path from start to connection point
-        path_from_start = []
-        node = connection_point_start
+        path_start = []
+        node = connect_start
         while node is not None:
-            path_from_start.append(node)
-            node = self.tree_start[node]
-        path_from_start.reverse()
+            path_start.append(node)
+            node = tree_start[node]
+        path_start = path_start[::-1]
 
-        # Extract path from connection point to goal
-        path_from_goal = []
-        node = connection_point_goal
+        path_goal = []
+        node = connect_goal
         while node is not None:
-            path_from_goal.append(node)
-            node = self.tree_goal[node]
+            path_goal.append(node)
+            node = tree_goal[node]
+        return path_start + path_goal
 
-        # Combine paths
-        full_path = path_from_start + path_from_goal
-        return full_path
-
-    def plan_path(self, cost_map: np.ndarray, motion_mission: Dict[str, Any],
-                  max_iterations: int = 1000, step_size: float = 2.0) -> Dict[str, Any]:
+    def _reconstruct_partial_path(
+        self,
+        tree: Dict[Tuple[int, int], Optional[Tuple[int, int]]],
+        node: Tuple[int, int]
+    ) -> List[Tuple[int, int]]:
         """
-        Plan path using RRT-Connect algorithm
+        Reconstruct path from start to node.
 
         Args:
-            cost_map: 100x100 operation cost map with values in [0, 1]
-            motion_mission: Dictionary containing mission parameters:
-                - start_position: [x, y] starting coordinates
-                - target_position: [x, y] goal coordinates
-            max_iterations: Maximum number of iterations
-            step_size: Step size for tree extension
+            tree: Tree dictionary.
+            node: End node.
 
         Returns:
-            Dictionary containing success status, path, and planning metrics
+            List of waypoints.
         """
-        # Initialize planner with new parameters
-        self._initialize_planner(cost_map, motion_mission)
+        path = []
+        while node is not None:
+            path.append(node)
+            node = tree[node]
+        return path[::-1]
 
-        start_time = time.time()
-
-        for iteration in range(max_iterations):
-            # Try to connect trees
-            connection_start, connection_goal = self.connect_trees(step_size)
-
-            if connection_start and connection_goal:
-                # Extract complete path
-                self.path = self.extract_path(connection_start, connection_goal)
-                self.success = True
-                break
-
-        # If no path found, return best effort path
-        if not self.success:
-            # Find closest points between trees
-            min_dist = float('inf')
-            best_start, best_goal = None, None
-
-            for start_node in self.tree_start.keys():
-                for goal_node in self.tree_goal.keys():
-                    dist = math.sqrt((start_node[0] - goal_node[0]) ** 2 +
-                                     (start_node[1] - goal_node[1]) ** 2)
-                    if dist < min_dist and self.is_valid_path(start_node, goal_node):
-                        min_dist = dist
-                        best_start, best_goal = start_node, goal_node
-
-            if best_start and best_goal:
-                self.path = self.extract_path(best_start, best_goal)
-
-        planning_time = time.time() - start_time
-        path_cost = self.calculate_path_cost(self.path) if self.path else float('inf')
-
-        return {
-            'success': self.success,
-            'path': self.path,
-            'path_cost': path_cost,
-            'planning_time': planning_time,
-            'iterations': iteration + 1 if self.success else max_iterations,
-            'tree_size_start': len(self.tree_start),
-            'tree_size_goal': len(self.tree_goal)
-        }
-
-    def visualize(self, show_path: bool = True, show_trees: bool = False,
-                  save_path: Optional[str] = None):
+    def _calculate_path_cost(
+        self,
+        path: List[Tuple[int, int]]
+    ) -> float:
         """
-        Visualize the map and planned path
+        Compute weighted sum of path length and operational cost.
 
         Args:
-            show_path: Whether to show the planned path
-            show_trees: Whether to show the search trees
-            save_path: Optional path to save the visualization
+            path: List of waypoints.
+
+        Returns:
+            Total cost.
         """
-        if self.fig is None:
-            self.fig, self.ax = plt.subplots(figsize=(10, 10))
+        if not path or len(path) < 2 or self._cost_map is None:
+            return float('inf')
+        length = 0.0
+        op_cost = 0.0
+        for i in range(1, len(path)):
+            prev, curr = path[i - 1], path[i]
+            length += np.linalg.norm(np.array(curr) - np.array(prev))
+            op_cost += self._cost_map[curr[0], curr[1]]
+        return self.length_weight * length + self.cost_weight * op_cost
 
-        self.ax.clear()
+    def _visualize_result(
+        self,
+        cost_map: np.ndarray,
+        path: List[Tuple[int, int]],
+        sampled_points: List[Tuple[int, int]],
+        edges: List[Tuple[Tuple[int, int], Tuple[int, int]]]
+    ) -> None:
+        """
+        Generate visualization using matplotlib.
 
-        # Display cost map with colormap
-        im = self.ax.imshow(self.cost_map.T, origin='lower',
-                            cmap='viridis', alpha=0.7,
-                            extent=[0, self.map_size[0], 0, self.map_size[1]])
+        Args:
+            cost_map: Grid map.
+            path: Planned path.
+            sampled_points: List of sampled points.
+            edges: List of edges.
+        """
+        plt.figure(figsize=(8, 8))
+        plt.imshow(cost_map.T, origin='lower', cmap='viridis')
+        cbar = plt.colorbar(fraction=0.03, pad=0.04)
+        # Position colorbar at top-right, height=50% of image
+        ax = plt.gca()
+        fig = plt.gcf()
+        bbox = ax.get_position()
+        cbar.ax.set_position([bbox.x1 + 0.02, bbox.y1 - 0.25 * bbox.height, 0.03, 0.5 * bbox.height])
 
-        # Add colorbar
-        cbar = self.fig.colorbar(im, ax=self.ax, shrink=0.8)
-        cbar.set_label('Operation Cost')
+        # Plot sampled points
+        if sampled_points:
+            pts = np.array(sampled_points)
+            plt.scatter(pts[:, 0], pts[:, 1], s=5, c='gray', alpha=0.5, label='Sampled Points')
 
-        # Mark start and goal points
-        self.ax.plot(self.start[0], self.start[1], 'go', markersize=10, label='Start')
-        self.ax.plot(self.goal[0], self.goal[1], 'ro', markersize=10, label='Goal')
+        # Plot edges
+        for edge in edges:
+            x = [edge[0][0], edge[1][0]]
+            y = [edge[0][1], edge[1][1]]
+            plt.plot(x, y, color='orange', linewidth=0.5, alpha=0.7)
 
-        if show_trees:
-            # Draw start tree
-            for node, parent in self.tree_start.items():
-                if parent:
-                    self.ax.plot([parent[0], node[0]], [parent[1], node[1]], 'b-', alpha=0.3)
+        # Plot path
+        if path and len(path) > 1:
+            px = [p[0] for p in path]
+            py = [p[1] for p in path]
+            plt.plot(px, py, color='red', linewidth=2, label='Planned Path')
+            plt.scatter([px[0], px[-1]], [py[0], py[-1]], c=['green', 'blue'], s=50, label='Start/Goal')
 
-            # Draw goal tree
-            for node, parent in self.tree_goal.items():
-                if parent:
-                    self.ax.plot([parent[0], node[0]], [parent[1], node[1]], 'r-', alpha=0.3)
-
-        if show_path and self.path:
-            # Draw planned path
-            path_x = [p[0] for p in self.path]
-            path_y = [p[1] for p in self.path]
-            self.ax.plot(path_x, path_y, 'y-', linewidth=3, label='Planned Path')
-            self.ax.plot(path_x, path_y, 'yo', markersize=4, alpha=0.7)
-
-        self.ax.set_xlim(0, self.map_size[0])
-        self.ax.set_ylim(0, self.map_size[1])
-        self.ax.set_xlabel('X Coordinate')
-        self.ax.set_ylabel('Y Coordinate')
-        self.ax.set_title('RRT-Connect Path Planning')
-        self.ax.legend()
-        self.ax.grid(True, alpha=0.3)
-
+        plt.legend(loc='upper left')
+        plt.title("RRT-Connect Path Planning")
         plt.tight_layout()
-
-        if save_path:
-            plt.savefig(save_path, dpi=300, bbox_inches='tight')
-            print(f"Visualization saved to {save_path}")
-
         plt.show()
 
 if __name__ == "__main__":
-    cost_map = np.zeros((100, 100))
+    cost_map = np.zeros((128, 128))
+    cost_map[20:30, 20:30] = 0.5
 
-    # Add some obstacles (cost = 1)
-    cost_map[20:40, 30:50] = 1  # Square obstacle
-    cost_map[60:80, 20:40] = 1  # Another square
-    cost_map[40:60, 70:90] = 1  # Third obstacle
+    cost_map[30:45, 50:65] = 1
 
-    # Add some high-cost areas (0.5-0.9)
-    cost_map[10:20, 10:20] = 0.7
-    cost_map[80:90, 80:90] = 0.5
-    # 初始化规划器
+    start = [10, 10]
+    end = [75, 75]
+    motion_mission = {"start_position": start, "target_position": end}
+
     planner = RRTConnectPlanner()
-
-    # 规划路径
-    result = planner.plan_path(
-        cost_map=cost_map,
-        motion_mission={
-            'start_position': np.array([10, 10]),
-            'target_position': np.array([90, 90])
-        },
-        max_iterations=2000,
-        step_size=3.0
-    )
-
-    # 可视化结果
-    planner.visualize(show_path=True, show_trees=True, save_path='path_plan.png')
+    planner.plan(cost_map=cost_map, motion_mission=motion_mission, visualize=True)

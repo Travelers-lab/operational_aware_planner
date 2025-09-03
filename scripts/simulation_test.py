@@ -8,7 +8,6 @@ from typing import Dict, List, Tuple, Any, Optional
 from pathlib import Path
 import random
 from dataclasses import dataclass
-import matplotlib.pyplot as plt
 
 from robot_environment.robot_environment import Robot
 from sampling_based_planning_framework.interactive_planning_pipeline import IntegratedMotionPlanningPipeline
@@ -332,69 +331,6 @@ class RobotPlanningTester:
             execution_success = False
 
         return execution_success
-
-    # def run_test(self, test_id: str = None) -> TestResult:
-    #     """
-    #     Run a complete test case.
-    #
-    #     Args:
-    #         test_id: Optional test identifier
-    #
-    #     Returns:
-    #         Test result object
-    #     """
-    #     if test_id is None:
-    #         test_id = f"test_{len(self.test_results) + 1:04d}"
-    #
-    #     print(f"Running test: {test_id}")
-    #
-    #     # Generate test task
-    #     target_position = self.generate_test_task()
-    #
-    #     # Create motion mission
-    #     motion_mission = self.create_motion_mission(target_position)
-    #
-    #     # Plan motion
-    #     planning_start_time = time.time()
-    #     planning_results = self.plan_motion(motion_mission)
-    #     planning_time = time.time() - planning_start_time
-    #
-    #     # Evaluate planning result
-    #     should_execute = self.evaluate_planning_result(planning_results, motion_mission)
-    #
-    #     execution_success = False
-    #     final_error = 0.0
-    #
-    #     if should_execute and planning_results.get('planned_path'):
-    #         # Execute planned motion
-    #         execution_success = self.execute_planned_motion(
-    #             planning_results['planned_path']
-    #         )
-    #
-    #         # Calculate final error
-    #         final_state = self.get_robot_state()
-    #         final_pos = final_state["pos"][:2]
-    #         final_error = np.sqrt((final_pos[0] - target_position[0]) ** 2 +
-    #                               (final_pos[1] - target_position[1]) ** 2)
-    #
-    #     # Create test result
-    #     test_result = TestResult(
-    #         test_id=test_id,
-    #         planning_success=planning_results.get('planning_success', False),
-    #         execution_success=execution_success,
-    #         planning_time=planning_time,
-    #         path_length=len(planning_results.get('planned_path', [])),
-    #         path_cost=planning_results.get('path_cost', float('inf')),
-    #         start_position=motion_mission['start_position'],
-    #         target_position=motion_mission['target_position'],
-    #         obstacles_count=len(self.objects_dict),
-    #         final_error=final_error
-    #     )
-    #
-    #     self.test_results.append(test_result)
-    #     self._save_test_result(test_result)
-    #
-    #     return test_result
 
     def _save_test_result(self, test_result: TestResult) -> None:
         """
